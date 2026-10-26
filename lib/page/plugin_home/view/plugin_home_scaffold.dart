@@ -11,6 +11,7 @@ import 'package:zephyr/page/plugin_home/view/plugin_home_tab_body.dart';
 import 'package:zephyr/page/plugin_home/view/plugin_selector_dialog.dart';
 import 'package:zephyr/cubit/plugin_registry_cubit.dart';
 import 'package:zephyr/widgets/toast.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 /// 插件通用 TabView 骨架：标题位即 TabBar（可横滑）+ 右上随 tab 切换 + 左侧图标切插件。
 ///
@@ -190,11 +191,16 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
                   : _buildActions(context, state, activeTab, activeIndex),
             ),
             body: _buildBody(context, state),
-            floatingActionButton: FloatingActionButton(
-              heroTag: null,
-              tooltip: widget.selectorTitle,
-              onPressed: () => _openSelector(context, state),
-              child: const Icon(Icons.extension_outlined),
+            floatingActionButton: Padding(
+              padding: EdgeInsets.only(
+                bottom: GlassNavigationInsets.floatingBottomOf(context),
+              ),
+              child: FloatingActionButton(
+                heroTag: null,
+                tooltip: widget.selectorTitle,
+                onPressed: () => _openSelector(context, state),
+                child: const Icon(Icons.extension_outlined),
+              ),
             ),
           );
         },

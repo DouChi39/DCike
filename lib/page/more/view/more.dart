@@ -2,6 +2,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zephyr/config/global/global.dart';
 import 'package:zephyr/page/more/more.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 @RoutePage()
 class MorePage extends StatelessWidget {
@@ -11,11 +12,17 @@ class MorePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
+        bottom: GlassNavigationInsets.bottomOf(context) == 0,
         child: Align(
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 768),
             child: ListView(
+              padding: GlassNavigationInsets.bottomOf(context) > 0
+                  ? EdgeInsets.only(
+                      bottom: GlassNavigationInsets.bottomOf(context),
+                    )
+                  : null,
               children: [
                 const SizedBox(height: 24),
                 _buildHeader(context),

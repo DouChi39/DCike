@@ -12,6 +12,7 @@ import 'package:zephyr/page/discover/widgets/plugin_card.dart';
 import 'package:zephyr/page/search/cubit/search_cubit.dart';
 import 'package:zephyr/plugin/plugin_registry_service.dart';
 import 'package:zephyr/widgets/toast.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 @RoutePage()
 class DiscoverPage extends StatelessWidget {
@@ -64,11 +65,16 @@ class _DiscoverView extends StatelessWidget {
           context.watch<GlobalSettingCubit>().state.leftHandModeEnabled
           ? FloatingActionButtonLocation.startFloat
           : FloatingActionButtonLocation.endFloat,
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        tooltip: t.discover.search,
-        onPressed: () => _search(context),
-        child: const Icon(Icons.search),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(
+          bottom: GlassNavigationInsets.floatingBottomOf(context),
+        ),
+        child: FloatingActionButton(
+          heroTag: null,
+          tooltip: t.discover.search,
+          onPressed: () => _search(context),
+          child: const Icon(Icons.search),
+        ),
       ),
     );
   }
@@ -80,7 +86,9 @@ class _DiscoverView extends StatelessWidget {
 
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 120),
+          padding: EdgeInsets.only(
+            bottom: 120 + GlassNavigationInsets.bottomOf(context),
+          ),
           children: [
             const SizedBox(height: 16),
             _buildPluginStoreButton(context),

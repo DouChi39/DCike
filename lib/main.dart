@@ -74,6 +74,12 @@ List<String> cfIpList = [];
 
 final flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
+// DCike keeps diagnostics and log forwarding local unless explicitly enabled.
+const _remoteDiagnosticsEnabled = bool.fromEnvironment(
+  'dcike_enable_remote_diagnostics',
+  defaultValue: false,
+);
+
 /// 直接复用路由自己的 Navigator key：MaterialApp.router 会自建 Navigator，
 /// 传进来的独立 GlobalKey 不会被挂上，只有这个 key 拿得到当前 overlay。
 final navigatorKey = appRouter.navigatorKey;
@@ -131,7 +137,9 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  const sentryDsn = String.fromEnvironment('sentry_dsn', defaultValue: '');
+  const sentryDsn = _remoteDiagnosticsEnabled
+      ? String.fromEnvironment('sentry_dsn', defaultValue: '')
+      : '';
 
   if (sentryDsn.isEmpty) {
     // 1. 如果是调试模式，配置 logger 捕获全局错误
@@ -185,27 +193,18 @@ Future<void> main(List<String> args) async {
     (options) {
       options.dsn = sentryDsn;
 
-      // 开启默认的个人信息采集（IP/Header），有助于分析用户分布
-      options.sendDefaultPii = true;
+      // DCike does not attach personal data to optional diagnostics.
+      options.sendDefaultPii = false;
 
       // 仅在调试模式下打印 Sentry 内部日志
       options.debug = kDebugMode;
 
-      // --- Sentry Sponsored Business 特权配置 ---
-      // 性能追踪采样率
-      options.tracesSampleRate = 1.0;
+      options.tracesSampleRate = 0.0;
 
       // sentry_flutter 10.0.0-alpha.5 暂不提供 Dart 侧性能剖析采样配置。
 
-      // Android 上暂时关闭 Replay，规避原生侧生命周期卡顿/ANR 风险。
-      if (Platform.isAndroid) {
-        options.replay.sessionSampleRate = 0.0;
-        options.replay.onErrorSampleRate = 0.0;
-      } else {
-        // 会话回放设置：平时抽样 10%，遇到错误时 100% 录制
-        options.replay.sessionSampleRate = 0.1;
-        options.replay.onErrorSampleRate = 1.0;
-      }
+      options.replay.sessionSampleRate = 0.0;
+      options.replay.onErrorSampleRate = 0.0;
 
       // 附加线程信息和堆栈，增强原生层（Rust/C++）错误分析
       options.attachThreads = true;
@@ -343,7 +342,7 @@ Future<(GlobalSettingCubit, PluginRegistryCubit)> _initServices() async {
   // 设置日志转发（包含flutter和qjs的日志）
   final logAddress = globalSettingCubit.state.logAddress;
 
-  if (logAddress.isNotEmpty) {
+  if (_remoteDiagnosticsEnabled && logAddress.isNotEmpty) {
     if (!kDebugMode) {
       logger = Logger(
         printer: TersePrettyPrinter(),
@@ -358,7 +357,7 @@ Future<(GlobalSettingCubit, PluginRegistryCubit)> _initServices() async {
   // 关掉缓存定时清理(rust端)
   setHostCacheGcEnabled(enabled: false);
 
-  setTlsVerifyEnabled(enabled: false);
+  setTlsVerifyEnabled(enabled: true);
 
   await applyEinkAutoDetection(globalSettingCubit);
 

@@ -20,6 +20,8 @@ import 'package:zephyr/util/context/context_extensions.dart';
 import 'package:zephyr/util/error_filter.dart';
 import 'package:zephyr/util/manage_cache.dart';
 import 'package:zephyr/widgets/memory/memory_overlay_widget.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
+import 'package:zephyr/widgets/navigation/ios_glass_tab_bar.dart';
 import 'package:zephyr/widgets/toast.dart';
 
 import 'package:zephyr/main.dart';
@@ -79,6 +81,7 @@ class _NavigationBarState extends State<NavigationBar> {
     );
     _controller = PersistentTabController(initialIndex: initialIndex);
     _selectedIndex = initialIndex;
+    _controller.addListener(_onTabChanged);
     ForegroundTaskService.instance.init();
 
     initializeNotificationsOnce();
@@ -106,6 +109,7 @@ class _NavigationBarState extends State<NavigationBar> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onTabChanged);
     _controller.dispose();
     super.dispose();
   }
@@ -157,6 +161,9 @@ class _NavigationBarState extends State<NavigationBar> {
     required List<PersistentBottomNavBarItem> navBarItems,
     required bool backPressExitEnabled,
   }) {
+    if (Platform.isIOS) {
+      return _buildIosLayout(pageList);
+    }
     return PersistentTabView(
       context,
       controller: _controller,
@@ -176,6 +183,55 @@ class _NavigationBarState extends State<NavigationBar> {
           _selectedIndex = index;
         });
       },
+    );
+  }
+
+  void _onTabChanged() {
+    if (mounted && _selectedIndex != _controller.index) {
+      setState(() => _selectedIndex = _controller.index);
+    }
+  }
+
+  Widget _buildIosLayout(List<Widget> pageList) {
+    final safeBottom = MediaQuery.viewPaddingOf(context).bottom;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final barHeight = iosGlassTabBarHeight + safeBottom;
+    return PersistentTabView.custom(
+      context,
+      controller: _controller,
+      itemCount: pageList.length,
+      screens: [
+        for (final page in pageList)
+          CustomNavBarScreen(
+            screen: GlassNavigationInsets(
+              bottom: keyboardVisible ? 0 : barHeight,
+              child: page,
+            ),
+          ),
+      ],
+      customWidget: Padding(
+        padding: EdgeInsets.only(bottom: safeBottom),
+        child: IosGlassTabBar(
+          labels: [
+            t.navigation.home,
+            t.oldHome.cloudFavorite,
+            t.navigation.bookshelf,
+            t.navigation.discover,
+            t.navigation.more,
+          ],
+          selectedIndex: _selectedIndex,
+          brightness: Theme.of(context).brightness,
+          textScale: MediaQuery.textScalerOf(context).scale(11) / 11,
+          onSelected: _controller.jumpToTab,
+        ),
+      ),
+      backgroundColor: Colors.transparent,
+      navBarHeight: barHeight,
+      bottomScreenMargin: 0,
+      confineToSafeArea: false,
+      hideNavigationBarWhenKeyboardAppears: true,
+      resizeToAvoidBottomInset: false,
+      stateManagement: true,
     );
   }
 

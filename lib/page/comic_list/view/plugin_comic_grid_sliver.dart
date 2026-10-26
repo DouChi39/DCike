@@ -4,6 +4,7 @@ import 'package:zephyr/widgets/comic_simplify_entry/comic_simplify_entry_grid.da
 import 'package:zephyr/widgets/comic_simplify_entry/comic_simplify_entry_info.dart';
 import 'package:zephyr/i18n/strings.g.dart';
 import 'package:zephyr/type/enum.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 class PluginComicGridSliver extends StatelessWidget {
   const PluginComicGridSliver({
@@ -118,6 +119,9 @@ class PluginComicGridSliver extends StatelessWidget {
               ),
             ),
           ),
+        SliverToBoxAdapter(
+          child: SizedBox(height: GlassNavigationInsets.bottomOf(context)),
+        ),
       ],
     );
   }

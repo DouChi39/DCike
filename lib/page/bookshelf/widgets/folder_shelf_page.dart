@@ -33,6 +33,7 @@ import 'package:zephyr/widgets/comic_simplify_entry/detail_columns.dart';
 import 'package:zephyr/widgets/comic_simplify_entry/comic_simplify_entry_info.dart';
 import 'package:zephyr/widgets/fluent_dropdown.dart';
 import 'package:zephyr/widgets/toast.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 class FolderShelfPage extends StatelessWidget {
   const FolderShelfPage({
@@ -306,7 +307,7 @@ class _FolderShelfPageContentState extends State<_FolderShelfPageContent>
         .leftHandModeEnabled;
     return [
       Positioned(
-        bottom: 16,
+        bottom: 16 + GlassNavigationInsets.bottomOf(context),
         left: leftHandMode ? 16 : null,
         right: leftHandMode ? null : 16,
         child: IgnorePointer(
@@ -545,7 +546,7 @@ class _FolderShelfPageContentState extends State<_FolderShelfPageContent>
               10,
               state.selectionMode ? 10 : (state.isRoot ? 10 : 64),
               10,
-              88,
+              88 + GlassNavigationInsets.bottomOf(context),
             );
             Widget shelfItemBuilder(BuildContext context, int index) {
               if (index < filteredFolders.length) {
@@ -647,7 +648,7 @@ class _FolderShelfPageContentState extends State<_FolderShelfPageContent>
     );
     final mode = context.select((FolderShelfBloc bloc) => bloc.state.mode);
     return Positioned(
-      bottom: 8,
+      bottom: 8 + GlassNavigationInsets.bottomOf(context),
       left: 8,
       right: 8,
       child: IgnorePointer(

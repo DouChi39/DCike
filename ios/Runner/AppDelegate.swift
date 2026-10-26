@@ -17,6 +17,12 @@ import Darwin
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setupMemoryChannel(pluginRegistry: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeGlassTabBar") {
+      registrar.register(
+        DCikeGlassTabBarFactory(messenger: registrar.messenger()),
+        withId: "dcike/native_tab_bar"
+      )
+    }
   }
 
   private func setupMemoryChannel(pluginRegistry: FlutterPluginRegistry) {

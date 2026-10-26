@@ -11,6 +11,7 @@ import 'package:zephyr/widgets/comic_simplify_entry/cover.dart';
 import 'package:zephyr/widgets/section_header.dart';
 import 'package:zephyr/i18n/strings.g.dart';
 import 'package:zephyr/type/enum.dart';
+import 'package:zephyr/widgets/navigation/glass_navigation_insets.dart';
 
 class DiscoverSchemeRenderer {
   const DiscoverSchemeRenderer();
@@ -77,6 +78,9 @@ class DiscoverSchemeRenderer {
       child: ListView(
         physics: physics ?? const AlwaysScrollableScrollPhysics(),
         shrinkWrap: shrinkWrap,
+        padding: GlassNavigationInsets.bottomOf(context) > 0
+            ? EdgeInsets.only(bottom: GlassNavigationInsets.bottomOf(context))
+            : null,
         children: children,
       ),
     );
