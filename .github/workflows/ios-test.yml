@@ -88,7 +88,7 @@ jobs:
           test -d "$app"
           plutil -lint "$app/Info.plist"
           executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")
-          lipo -verify_arch arm64 "$app/$executable"
+          lipo "$app/$executable" -verify_arch arm64
           package_dir="$RUNNER_TEMP/dcike-ipa"
           mkdir -p "$package_dir/Payload"
           ditto "$app" "$package_dir/Payload/Runner.app"
