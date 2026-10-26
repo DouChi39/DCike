@@ -9,6 +9,7 @@ import 'package:zephyr/object_box/object_box.dart';
 import 'package:zephyr/object_box/objectbox.g.dart';
 import 'package:zephyr/page/bookshelf/service/comic_link_service.dart';
 import 'package:zephyr/plugin/models/plugin_runtime_state.dart';
+import 'package:zephyr/plugin/utils/plugin_bundle_compat.dart';
 import 'package:zephyr/src/rust/api/qjs.dart';
 import 'package:zephyr/src/rust/qjs.dart';
 import 'package:zephyr/util/get_path.dart';
@@ -797,7 +798,7 @@ class PluginRegistryService {
         final debugBundle = response.text;
         if (debugBundle.trim().isNotEmpty) {
           logger.d('[plugin-bundle] source=debugUrl plugin=${plugin.uuid}');
-          return debugBundle;
+          return applyPluginBundleCompatibility(plugin.uuid, debugBundle);
         }
         throw StateError('debug bundle 为空');
       } catch (e) {
@@ -813,7 +814,7 @@ class PluginRegistryService {
     final dbBundle = _loadPluginBundleFromDb(plugin.uuid);
     if (dbBundle != null) {
       logger.d('[plugin-bundle] source=db plugin=${plugin.uuid}');
-      return dbBundle;
+      return applyPluginBundleCompatibility(plugin.uuid, dbBundle);
     }
 
     throw StateError('bundle_js不能为空: ${plugin.uuid}');

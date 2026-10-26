@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:tray_manager/tray_manager.dart';
 import 'package:window_manager/window_manager.dart';
+import 'package:zephyr/config/global/global.dart';
 import 'package:zephyr/i18n/strings.g.dart';
 import 'package:zephyr/main.dart';
 import 'package:zephyr/platform/desktop/native_window.dart';
@@ -132,7 +133,7 @@ Future<void> initSystemTray({
     trayIcon.setContextMenu(menu);
 
     try {
-      trayIcon.setTooltip('Zephyr');
+      trayIcon.setTooltip(appName);
     } catch (e) {
       logger.d('setToolTip is unsupported on this platform: $e');
     }

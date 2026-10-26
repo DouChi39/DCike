@@ -66,7 +66,7 @@ void RestoreExistingWindow(HWND hwnd) {
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t* command_line, _In_ int show_command) {
-  HWND hwnd = ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"zephyr");
+  HWND hwnd = ::FindWindow(L"FLUTTER_RUNNER_WIN32_WINDOW", L"DCike");
   if (hwnd != NULL) {
     RestoreExistingWindow(hwnd);
     return EXIT_FAILURE;
@@ -90,7 +90,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"zephyr", origin, size)) {
+  if (!window.Create(L"DCike", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

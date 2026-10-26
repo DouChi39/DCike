@@ -140,7 +140,7 @@ Future<String> createDownloadDir() async {
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       final downloadDir = await getDownloadsDirectory();
       if (downloadDir != null) {
-        final path = p.join(downloadDir.path, appName);
+        final path = p.join(downloadDir.path, appStorageName);
         await _ensureDirExists(path);
         return path;
       }
@@ -149,18 +149,18 @@ Future<String> createDownloadDir() async {
       final home =
           Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
       if (home != null && home.isNotEmpty) {
-        return p.join(home, 'Downloads', appName);
+        return p.join(home, 'Downloads', appStorageName);
       } else {
         // 如果实在获取不到 HOME 目录，回退到内部文件存储路径
         final fallbackDir = await getFilePath();
-        return p.join(fallbackDir, 'Downloads', appName);
+        return p.join(fallbackDir, 'Downloads', appStorageName);
       }
     }
 
     // 2. Android
     if (Platform.isAndroid) {
       const String standardPath = "/storage/emulated/0/Download";
-      final String savePath = p.join(standardPath, appName);
+      final String savePath = p.join(standardPath, appStorageName);
 
       try {
         await _ensureDirExists(savePath);

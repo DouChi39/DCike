@@ -1,0 +1,113 @@
+name: DCike iOS Test Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    env:
+      FLUTTER_SUPPRESS_ANALYTICS: "true"
+      COCOAPODS_DISABLE_STATS: "true"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Read pinned Flutter version
+        id: flutter-version
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(".fvmrc", encoding="utf-8") as source:
+              version = json.load(source)["flutter"]
+          if not re.fullmatch(r"\d+\.\d+\.\d+", version):
+              raise SystemExit("Expected a pinned Flutter release in .fvmrc")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version={version}\n")
+          PY
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.flutter-version.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Set up Rust for iPhone
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Prepare iOS dependencies
+        run: |
+          set -euo pipefail
+          flutter config --no-analytics
+          flutter --version
+          xcodebuild -version
+          rustc --version
+          flutter precache --ios
+          flutter pub get
+
+      - name: Build unsigned iPhone app
+        run: |
+          set -euo pipefail
+          export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$(xcrun --sdk iphoneos --find clang)"
+          export IPHONEOS_DEPLOYMENT_TARGET="15.0"
+          export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -isysroot $SDKROOT"
+          export CXXFLAGS_aarch64_apple_ios="$CFLAGS_aarch64_apple_ios"
+          export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+          export RUSTFLAGS="$CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS"
+          flutter build ios --release --no-codesign --no-pub --split-debug-info=build/symbols
+
+      - name: Package IPA for SideStore
+        run: |
+          set -euo pipefail
+          app="build/ios/iphoneos/Runner.app"
+          test -d "$app"
+          plutil -lint "$app/Info.plist"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")
+          lipo -verify_arch arm64 "$app/$executable"
+          package_dir="$RUNNER_TEMP/dcike-ipa"
+          mkdir -p "$package_dir/Payload"
+          ditto "$app" "$package_dir/Payload/Runner.app"
+          (
+            cd "$package_dir"
+            zip -qry "$GITHUB_WORKSPACE/DCike-iOS.ipa" Payload
+          )
+          unzip -tq DCike-iOS.ipa
+          {
+            echo 'DCike-iOS.ipa is an unsigned iPhone build.'
+            echo 'Download the ios-ipa artifact and sign/install the IPA using SideStore.'
+            echo 'Minimum supported iOS version: 15.0.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v6
+        with:
+          name: ios-ipa
+          path: DCike-iOS.ipa
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
-Name=Breeze
-Name[zh_CN]=Breeze
+Name=DCike
+Name[zh_CN]=DCike
 Description=Third-party client for Bika and JM
 Description[zh_CN]=flutter编写的漫画阅读器，使用插件提供漫画源支持
 Exec=breeze

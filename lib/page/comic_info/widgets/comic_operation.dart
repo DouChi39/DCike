@@ -2,6 +2,10 @@ import 'package:auto_route/auto_route.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:zephyr/config/global/global_setting.dart';
+import 'package:zephyr/cubit/plugin_registry_cubit.dart';
+import 'package:zephyr/network/http/plugin/unauthorized_payload.dart';
+import 'package:zephyr/page/comic_info/models/auto_cloud_favorite.dart';
+import 'package:zephyr/plugin/bridge/plugin_config_bridge.dart';
 import 'package:zephyr/page/comic_info/models/favorite_workflow.dart';
 import 'package:zephyr/page/comic_info/json/normal/normal_comic_all_info.dart';
 import 'package:zephyr/page/comic_info/models/collect_comic.dart';
@@ -41,6 +45,8 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
   bool isCollected = false;
   bool isLiked = false;
   bool isCloudCollected = false;
+  bool _localFavoriteBusy = false;
+  bool _cloudFavoriteBusy = false;
 
   @override
   void initState() {
@@ -88,7 +94,9 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
       highlighted: isCollected,
       accentColor: const Color(0xFFE6A700),
       enabled: true,
-      onTap: _toggleLocalFavorite,
+      onTap: _localFavoriteBusy || _cloudFavoriteBusy
+          ? null
+          : _toggleLocalFavorite,
     );
     final cloudCollectItem = _OperationItemData(
       icon: isCloudCollected ? Icons.cloud_done_outlined : Icons.cloud_outlined,
@@ -98,7 +106,9 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
       highlighted: isCloudCollected,
       accentColor: Colors.pink,
       enabled: true,
-      onTap: _toggleCloudFavorite,
+      onTap: _localFavoriteBusy || _cloudFavoriteBusy
+          ? null
+          : _toggleCloudFavorite,
     );
     final actions = [
       _OperationItemData(
@@ -171,6 +181,8 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
   }
 
   Future<void> _toggleLocalFavorite() async {
+    if (_localFavoriteBusy || _cloudFavoriteBusy) return;
+    setState(() => _localFavoriteBusy = true);
     try {
       // 取消收藏需要确认，因为会删除所有文件夹中的记录
       if (isCollected) {
@@ -191,10 +203,12 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
         isCollected = next;
       });
       if (next) {
-        await _autoFollowIfEnabled();
-      }
-      if (next) {
         showSuccessToast(t.comicInfo.addedToCollection);
+        try {
+          await _autoFollowIfEnabled();
+        } finally {
+          if (mounted) await _autoCloudCollectIfEnabled();
+        }
       } else {
         showSuccessToast(t.comicInfo.removedFromCollection);
       }
@@ -208,10 +222,62 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
         ),
         duration: const Duration(seconds: 5),
       );
+    } finally {
+      if (mounted) setState(() => _localFavoriteBusy = false);
+    }
+  }
+
+  Future<void> _autoCloudCollectIfEnabled() async {
+    final enabled = context
+        .read<GlobalSettingCubit>()
+        .state
+        .autoCloudCollectOnCollect;
+    if (!enabled || isCloudCollected) return;
+
+    try {
+      final pluginId = widget.from.trim();
+      final registry = context.read<PluginRegistryCubit>().state;
+      final next = await autoCollectToCloud(
+        enabled: enabled,
+        pluginReady: registry.isReady(pluginId),
+        supportsCloudFavorite: registry.hasCapability(
+          pluginId,
+          'haveCloudFavorite',
+        ),
+        currentStatus: isCloudCollected,
+        loginConfig: loadPluginConfigValue<Map<String, dynamic>>(
+          pluginId,
+          '',
+          fallback: const {},
+        ),
+        addFavorite: () => toggleCloudComicFavorite(
+          context: context,
+          from: pluginId,
+          comicId: comicInfoView.id,
+          currentStatus: false,
+          legacyAllowCollected: normalInfo.allowCollected,
+          legacyAllowCollectedReason: normalInfo.allowCollectedReason,
+          suppressNeedLoginEvent: true,
+        ),
+      );
+      if (mounted && next != null) {
+        setState(() => isCloudCollected = next);
+        if (next) showSuccessToast(t.comicInfo.cloudCollectSuccess);
+      }
+    } on PluginUnauthorizedException {
+      // 会话过期也不自动打开登录页，本地收藏已经保存。
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is FavoriteWorkflowIncompleteException
+          ? error.result.message ?? t.comicInfo.cloudCollectIncomplete
+          : normalizeSearchErrorMessage(error);
+      showInfoToast(t.settings.autoCloudCollectFailed(error: message));
     }
   }
 
   Future<void> _toggleCloudFavorite() async {
+    if (_localFavoriteBusy || _cloudFavoriteBusy) return;
+    setState(() => _cloudFavoriteBusy = true);
     try {
       showInfoToast(
         isCloudCollected
@@ -263,6 +329,8 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
         normalizeSearchErrorMessage(error),
         duration: const Duration(seconds: 5),
       );
+    } finally {
+      if (mounted) setState(() => _cloudFavoriteBusy = false);
     }
   }
 

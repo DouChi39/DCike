@@ -1,4 +1,14 @@
-# Breeze
+# DCike
+
+DCike 是基于 [Breeze](https://github.com/deretame/Breeze) 开发的个人修改版本，原作者为 [windy（deretame）](https://github.com/deretame)。保留原项目的 [MPL 2.0 许可证](LICENSE)及版权声明。
+
+当前修改包括应用改名、拷贝漫画云收藏请求兼容修复，以及仅对已登录图源执行的「收藏自动云收藏」设置。iOS 界面改版尚未开始。
+
+本仓库通过 Actions 中的 **DCike iOS Test Build** 手动构建未签名的 `DCike-iOS.ipa`，完成后可从运行结果的 `ios-ipa` 附件下载，再使用 SideStore 个人签名安装。最低支持 iOS 15；构建和真机测试结果以对应运行记录为准。
+
+以下保留原项目说明，原项目发布链接指向 Breeze。
+
+## Breeze 原项目说明
 
 ## 💖 鸣谢与赞助
 

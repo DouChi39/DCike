@@ -45,6 +45,8 @@ _GlobalSettingState _$GlobalSettingStateFromJson(
   updateAccelerate: json['updateAccelerate'] as bool? ?? true,
   retryDownloadUntilSuccess: json['retryDownloadUntilSuccess'] as bool? ?? true,
   autoFollowOnCollect: json['autoFollowOnCollect'] as bool? ?? false,
+  autoCloudCollectOnCollect:
+      json['autoCloudCollectOnCollect'] as bool? ?? false,
   leftHandModeEnabled: json['leftHandModeEnabled'] as bool? ?? false,
   clickCoverToStartReading: json['clickCoverToStartReading'] as bool? ?? false,
   searchHistory:
@@ -118,6 +120,7 @@ Map<String, dynamic> _$GlobalSettingStateToJson(_GlobalSettingState instance) =>
       'updateAccelerate': instance.updateAccelerate,
       'retryDownloadUntilSuccess': instance.retryDownloadUntilSuccess,
       'autoFollowOnCollect': instance.autoFollowOnCollect,
+      'autoCloudCollectOnCollect': instance.autoCloudCollectOnCollect,
       'leftHandModeEnabled': instance.leftHandModeEnabled,
       'clickCoverToStartReading': instance.clickCoverToStartReading,
       'searchHistory': instance.searchHistory,

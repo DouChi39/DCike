@@ -39,7 +39,7 @@ class TranslationsEnUs extends Translations with BaseTranslations<AppLocale, Tra
 	TranslationsEnUs $copyWith({TranslationMetadata<AppLocale, Translations>? meta}) => TranslationsEnUs(meta: meta ?? this.$meta);
 
 	// Translations
-	@override String get appName => 'Breeze';
+	@override String get appName => 'DCike';
 	@override late final _Translations$common$en_US common = _Translations$common$en_US._(_root);
 	@override late final _Translations$error$en_US error = _Translations$error$en_US._(_root);
 	@override late final _Translations$navigation$en_US navigation = _Translations$navigation$en_US._(_root);
@@ -290,6 +290,9 @@ class _Translations$settings$en_US extends Translations$settings$zh_CN {
 	@override String get appLockSubtitle => 'Require verification when entering the app';
 	@override String get autoFollowOnCollect => 'Auto-follow on collect';
 	@override String get autoFollowOnCollectSubtitle => 'Automatically add comics to the follow list when favorited';
+	@override String get autoCloudCollectOnCollect => 'Automatically add to cloud favorites';
+	@override String get autoCloudCollectOnCollectSubtitle => 'Add new local favorites to the source\'s cloud favorites when signed in and supported. Failure keeps the local favorite. Existing favorites are not uploaded, and removing a local favorite keeps its cloud copy.';
+	@override String autoCloudCollectFailed({required Object error}) => 'Local favorite saved; automatic cloud favorite was not completed: ${error}';
 	@override String get leftHandMode => 'Left-hand mode';
 	@override String get leftHandModeSubtitle => 'Move floating action buttons and other controls to the left side';
 	@override String get clickCoverToStartReading => 'Tap cover to start reading';
@@ -418,7 +421,7 @@ class _Translations$settings$en_US extends Translations$settings$zh_CN {
 	@override String get changelog => 'Changelog';
 	@override String get changelogSubtitle => 'View update records for each version';
 	@override String get aboutApp => 'About app';
-	@override String get aboutAppSubtitle => 'Detailed information about Breeze';
+	@override String get aboutAppSubtitle => 'Detailed information about DCike';
 	@override String get pluginManagement => 'Plugin management';
 	@override String get debugMode => 'Debug mode';
 	@override String get debugAddress => 'Debug address';
@@ -1592,7 +1595,7 @@ class _Translations$dialog$en_US extends Translations$dialog$zh_CN {
 extension on TranslationsEnUs {
 	dynamic _flatMapFunction(String path) {
 		return switch (path) {
-			'appName' => 'Breeze',
+			'appName' => 'DCike',
 			'common.ok' => 'OK',
 			'common.cancel' => 'Cancel',
 			'common.save' => 'Save',
@@ -1773,6 +1776,9 @@ extension on TranslationsEnUs {
 			'settings.appLockSubtitle' => 'Require verification when entering the app',
 			'settings.autoFollowOnCollect' => 'Auto-follow on collect',
 			'settings.autoFollowOnCollectSubtitle' => 'Automatically add comics to the follow list when favorited',
+			'settings.autoCloudCollectOnCollect' => 'Automatically add to cloud favorites',
+			'settings.autoCloudCollectOnCollectSubtitle' => 'Add new local favorites to the source\'s cloud favorites when signed in and supported. Failure keeps the local favorite. Existing favorites are not uploaded, and removing a local favorite keeps its cloud copy.',
+			'settings.autoCloudCollectFailed' => ({required Object error}) => 'Local favorite saved; automatic cloud favorite was not completed: ${error}',
 			'settings.leftHandMode' => 'Left-hand mode',
 			'settings.leftHandModeSubtitle' => 'Move floating action buttons and other controls to the left side',
 			'settings.clickCoverToStartReading' => 'Tap cover to start reading',
@@ -1901,7 +1907,7 @@ extension on TranslationsEnUs {
 			'settings.changelog' => 'Changelog',
 			'settings.changelogSubtitle' => 'View update records for each version',
 			'settings.aboutApp' => 'About app',
-			'settings.aboutAppSubtitle' => 'Detailed information about Breeze',
+			'settings.aboutAppSubtitle' => 'Detailed information about DCike',
 			'settings.pluginManagement' => 'Plugin management',
 			'settings.debugMode' => 'Debug mode',
 			'settings.debugAddress' => 'Debug address',
@@ -2101,11 +2107,11 @@ extension on TranslationsEnUs {
 			'reader.networkStatusSubtitle' => 'May be inaccurate on Linux',
 			'reader.battery' => 'Battery',
 			'reader.time' => 'Time',
+			_ => null,
+		} ?? switch (path) {
 			'reader.verticalPositionTop' => 'Top',
 			'reader.verticalPositionBottom' => 'Bottom',
 			'reader.horizontalPositionLeft' => 'Left',
-			_ => null,
-		} ?? switch (path) {
 			'reader.horizontalPositionCenter' => 'Center',
 			'reader.horizontalPositionRight' => 'Right',
 			'reader.readingDirectionLtr' => 'Left to right',
@@ -2615,11 +2621,11 @@ extension on TranslationsEnUs {
 			'discover.pluginInfoLoadFailed' => ({required Object error}) => 'Failed to load plugin info: ${error}',
 			'discover.pluginCapability' => 'Plugin Capability',
 			'discover.disabled' => 'Disabled',
+			_ => null,
+		} ?? switch (path) {
 			'discover.unnamed' => 'Unnamed',
 			'discover.pluginEnableFailed' => ({required Object error}) => 'Failed to enable plugin: ${error}',
 			'discover.pluginCloseFailed' => ({required Object error}) => 'Failed to disable plugin: ${error}',
-			_ => null,
-		} ?? switch (path) {
 			'discover.pluginDebugLoadFailed' => ({required Object error}) => 'Plugin debug load failed, reverted to database: ${error}',
 			'searchResult.enterPageNumber' => 'Enter page number',
 			'searchResult.pleaseEnterNumber' => 'Please enter a number',

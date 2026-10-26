@@ -42,8 +42,8 @@ class Translations with BaseTranslations<AppLocale, Translations> {
 
 	// Translations
 
-	/// zh-CN: 'Breeze'
-	String get appName => 'Breeze';
+	/// zh-CN: 'DCike'
+	String get appName => 'DCike';
 
 	late final Translations$common$zh_CN common = Translations$common$zh_CN.internal(_root);
 	late final Translations$error$zh_CN error = Translations$error$zh_CN.internal(_root);
@@ -656,6 +656,15 @@ class Translations$settings$zh_CN {
 	/// zh-CN: '开启后收藏漫画时将自动加入追更列表'
 	String get autoFollowOnCollectSubtitle => '开启后收藏漫画时将自动加入追更列表';
 
+	/// zh-CN: '收藏自动云收藏'
+	String get autoCloudCollectOnCollect => '收藏自动云收藏';
+
+	/// zh-CN: '开启后，新增本地收藏时自动加入对应图源的云收藏，仅对已登录且支持云收藏的图源生效；失败不影响本地收藏。不会补传已有收藏，取消本地收藏不会取消云收藏。'
+	String get autoCloudCollectOnCollectSubtitle => '开启后，新增本地收藏时自动加入对应图源的云收藏，仅对已登录且支持云收藏的图源生效；失败不影响本地收藏。不会补传已有收藏，取消本地收藏不会取消云收藏。';
+
+	/// zh-CN: '本地收藏已保留，自动云收藏未完成：$error'
+	String autoCloudCollectFailed({required Object error}) => '本地收藏已保留，自动云收藏未完成：${error}';
+
 	/// zh-CN: '左手优化'
 	String get leftHandMode => '左手优化';
 
@@ -1037,8 +1046,8 @@ class Translations$settings$zh_CN {
 	/// zh-CN: '关于应用'
 	String get aboutApp => '关于应用';
 
-	/// zh-CN: '关于 Breeze 的详细信息'
-	String get aboutAppSubtitle => '关于 Breeze 的详细信息';
+	/// zh-CN: '关于 DCike 的详细信息'
+	String get aboutAppSubtitle => '关于 DCike 的详细信息';
 
 	/// zh-CN: '插件管理'
 	String get pluginManagement => '插件管理';
@@ -4004,7 +4013,7 @@ class Translations$dialog$zh_CN {
 extension on Translations {
 	dynamic _flatMapFunction(String path) {
 		return switch (path) {
-			'appName' => 'Breeze',
+			'appName' => 'DCike',
 			'common.ok' => '确定',
 			'common.cancel' => '取消',
 			'common.save' => '保存',
@@ -4185,6 +4194,9 @@ extension on Translations {
 			'settings.appLockSubtitle' => '开启后进入应用需要验证',
 			'settings.autoFollowOnCollect' => '收藏自动追更',
 			'settings.autoFollowOnCollectSubtitle' => '开启后收藏漫画时将自动加入追更列表',
+			'settings.autoCloudCollectOnCollect' => '收藏自动云收藏',
+			'settings.autoCloudCollectOnCollectSubtitle' => '开启后，新增本地收藏时自动加入对应图源的云收藏，仅对已登录且支持云收藏的图源生效；失败不影响本地收藏。不会补传已有收藏，取消本地收藏不会取消云收藏。',
+			'settings.autoCloudCollectFailed' => ({required Object error}) => '本地收藏已保留，自动云收藏未完成：${error}',
 			'settings.leftHandMode' => '左手优化',
 			'settings.leftHandModeSubtitle' => '开启后将悬浮按钮等操作按钮移到屏幕左侧',
 			'settings.clickCoverToStartReading' => '点击封面开始阅读',
@@ -4312,7 +4324,7 @@ extension on Translations {
 			'settings.changelog' => '更新日志',
 			'settings.changelogSubtitle' => '查看各个版本的更新记录',
 			'settings.aboutApp' => '关于应用',
-			'settings.aboutAppSubtitle' => '关于 Breeze 的详细信息',
+			'settings.aboutAppSubtitle' => '关于 DCike 的详细信息',
 			'settings.pluginManagement' => '插件管理',
 			'settings.debugMode' => '调试模式',
 			'settings.debugAddress' => '调试地址',
@@ -4513,11 +4525,11 @@ extension on Translations {
 			'reader.networkStatusSubtitle' => 'Linux 下可能不准确',
 			'reader.battery' => '电量',
 			'reader.time' => '时间',
+			_ => null,
+		} ?? switch (path) {
 			'reader.verticalPositionTop' => '顶部',
 			'reader.verticalPositionBottom' => '底部',
 			'reader.horizontalPositionLeft' => '左侧',
-			_ => null,
-		} ?? switch (path) {
 			'reader.horizontalPositionCenter' => '居中',
 			'reader.horizontalPositionRight' => '右侧',
 			'reader.readingDirectionLtr' => '从左到右',
@@ -5027,11 +5039,11 @@ extension on Translations {
 			'discover.noPluginForSearch' => '暂无可用插件，无法搜索',
 			'discover.pluginInfoLoadFailed' => ({required Object error}) => '插件信息加载失败: ${error}',
 			'discover.pluginCapability' => '插件能力',
+			_ => null,
+		} ?? switch (path) {
 			'discover.disabled' => '已关闭',
 			'discover.unnamed' => '未命名',
 			'discover.pluginEnableFailed' => ({required Object error}) => '插件启用失败: ${error}',
-			_ => null,
-		} ?? switch (path) {
 			'discover.pluginCloseFailed' => ({required Object error}) => '插件关闭失败: ${error}',
 			'discover.pluginDebugLoadFailed' => ({required Object error}) => '插件调试加载失败，已回退数据库: ${error}',
 			'searchResult.enterPageNumber' => '输入页数',

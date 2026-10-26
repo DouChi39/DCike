@@ -6,6 +6,7 @@ import 'package:cbor/simple.dart' as cbor;
 import 'package:zephyr/main.dart';
 import 'package:zephyr/network/http/plugin/qjs_fetch_image_result.dart';
 import 'package:zephyr/plugin/plugin_registry_service.dart';
+import 'package:zephyr/plugin/utils/plugin_bundle_compat.dart';
 import 'package:zephyr/service/download/download_cancel_signal.dart';
 import 'package:zephyr/src/rust/api/qjs.dart';
 import 'package:zephyr/src/rust/api/simple.dart';
@@ -165,7 +166,9 @@ Future<T> _runQjsTask<T>({
 
   final useCallOnce = _shouldUseQjsCallOnce(resolvedPluginId);
   final debugBundleUrl = useCallOnce
-      ? loadQjsDebugBundleUrl(resolvedPluginId)
+      ? (resolvedPluginId == copyComicPluginId
+            ? null
+            : loadQjsDebugBundleUrl(resolvedPluginId))
       : null;
   final bundleJs = useCallOnce && debugBundleUrl == null
       ? await loadQjsBundleJs(resolvedPluginId)
@@ -376,7 +379,7 @@ Future<String> loadQjsBundleJs(String pluginId) async {
   if (!runtimeState.debug) {
     final dbBundle = runtimeState.originScript;
     if (dbBundle.trim().isNotEmpty) {
-      return dbBundle;
+      return applyPluginBundleCompatibility(normalizedPluginId, dbBundle);
     }
     throw StateError('bundle_js_missing_db:$normalizedPluginId');
   }
@@ -385,7 +388,7 @@ Future<String> loadQjsBundleJs(String pluginId) async {
   if (bundleUrl.isEmpty) {
     final dbBundle = runtimeState.originScript;
     if (dbBundle.trim().isNotEmpty) {
-      return dbBundle;
+      return applyPluginBundleCompatibility(normalizedPluginId, dbBundle);
     }
     throw StateError('bundle_js_missing_db:$normalizedPluginId');
   }
@@ -393,12 +396,15 @@ Future<String> loadQjsBundleJs(String pluginId) async {
   try {
     if (bundleUrl.split(".").last == "br") {
       final response = await fetchDirect(bundleUrl);
-      return await decompressExtreme(data: response.body).let(utf8.decode);
+      final bundle = await decompressExtreme(
+        data: response.body,
+      ).let(utf8.decode);
+      return applyPluginBundleCompatibility(normalizedPluginId, bundle);
     } else {
       final response = await fetchDirect(bundleUrl);
       final body = response.text;
       if (body.trim().isNotEmpty) {
-        return body;
+        return applyPluginBundleCompatibility(normalizedPluginId, body);
       }
     }
     logger.w('debug bundle 为空，回退数据库: $bundleUrl');
@@ -407,7 +413,7 @@ Future<String> loadQjsBundleJs(String pluginId) async {
   }
   final dbBundle = runtimeState.originScript;
   if (dbBundle.trim().isNotEmpty) {
-    return dbBundle;
+    return applyPluginBundleCompatibility(normalizedPluginId, dbBundle);
   }
   throw StateError('bundle_js不能为空: $normalizedPluginId');
 }

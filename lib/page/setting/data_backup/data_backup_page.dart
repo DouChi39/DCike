@@ -98,7 +98,7 @@ class _DataBackupPageState extends State<DataBackupPage> {
     }
 
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final fileName = 'Breeze-export-$timestamp.zip';
+    final fileName = '${t.appName}-export-$timestamp.zip';
     late final String zipPath;
 
     // iOS 的 file_selector 未实现 getDirectoryPath，先写到缓存再走系统分享面板

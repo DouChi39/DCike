@@ -40,11 +40,11 @@ abstract class ComicSyncRemoteAdapter {
 }
 
 class ComicSyncCore {
-  static String get syncRemoteRootName => '${appName}_$syncVersion';
+  static String get syncRemoteRootName => '${appStorageName}_$syncVersion';
 
-  static String get legacyDataRootName => appName;
+  static String get legacyDataRootName => appStorageName;
 
-  static String get legacySettingsRootName => '${appName}_setting';
+  static String get legacySettingsRootName => '${appStorageName}_setting';
 
   static String get comicMd5FileName => 'comic.md5';
 

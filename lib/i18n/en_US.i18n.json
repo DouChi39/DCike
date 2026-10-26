@@ -1,6 +1,6 @@
 {
   "@@locale": "en_US",
-  "appName": "Breeze",
+  "appName": "DCike",
   "common": {
     "ok": "OK",
     "cancel": "Cancel",
@@ -188,6 +188,9 @@
     "appLockSubtitle": "Require verification when entering the app",
     "autoFollowOnCollect": "Auto-follow on collect",
     "autoFollowOnCollectSubtitle": "Automatically add comics to the follow list when favorited",
+    "autoCloudCollectOnCollect": "Automatically add to cloud favorites",
+    "autoCloudCollectOnCollectSubtitle": "Add new local favorites to the source's cloud favorites when signed in and supported. Failure keeps the local favorite. Existing favorites are not uploaded, and removing a local favorite keeps its cloud copy.",
+    "autoCloudCollectFailed": "Local favorite saved; automatic cloud favorite was not completed: $error",
     "leftHandMode": "Left-hand mode",
     "leftHandModeSubtitle": "Move floating action buttons and other controls to the left side",
     "clickCoverToStartReading": "Tap cover to start reading",
@@ -316,7 +319,7 @@
     "changelog": "Changelog",
     "changelogSubtitle": "View update records for each version",
     "aboutApp": "About app",
-    "aboutAppSubtitle": "Detailed information about Breeze",
+    "aboutAppSubtitle": "Detailed information about DCike",
     "pluginManagement": "Plugin management",
     "debugMode": "Debug mode",
     "debugAddress": "Debug address",

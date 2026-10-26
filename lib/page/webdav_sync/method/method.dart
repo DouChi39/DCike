@@ -31,7 +31,7 @@ Future<void> testWebDavServer(
     }
 
     final propfindResponse = await client.fetch(
-      '/${appName}_$syncVersion/',
+      '/${appStorageName}_$syncVersion/',
       method: 'PROPFIND',
       headers: {'Depth': '0'},
     );

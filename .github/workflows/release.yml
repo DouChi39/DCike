@@ -564,13 +564,13 @@ jobs:
         run: |
           mkdir -p Payload
           cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r "Breeze-iOS.ipa" Payload
+          zip -r "DCike-iOS.ipa" Payload
 
       - name: 上传 iOS IPA
         uses: actions/upload-artifact@v6
         with:
           name: ios-ipa
-          path: Breeze-iOS.ipa
+          path: DCike-iOS.ipa
 
   # ══════════════════════════════════════════
   # 6. 汇总发布至 GitHub Release
@@ -622,7 +622,7 @@ jobs:
           echo "| **Windows** | [windows-installer-${VERSION}.exe](https://github.com/$REPO/releases/download/$VERSION/windows-installer-${VERSION}.exe) |" >> release_body.md
           echo "| **macOS** | [Breeze-macOS-${VERSION}.dmg](https://github.com/$REPO/releases/download/$VERSION/Breeze-macOS-${VERSION}.dmg) |" >> release_body.md
           echo "| **Android** | [app-arm64-v8a-release-${VERSION}.apk](https://github.com/$REPO/releases/download/$VERSION/app-arm64-v8a-release-${VERSION}.apk) |" >> release_body.md
-          echo "| **iOS** | [Breeze-iOS-${VERSION}.ipa](https://github.com/$REPO/releases/download/$VERSION/Breeze-iOS-${VERSION}.ipa) |" >> release_body.md
+          echo "| **iOS** | [DCike-iOS-${VERSION}.ipa](https://github.com/$REPO/releases/download/$VERSION/DCike-iOS-${VERSION}.ipa) |" >> release_body.md
           echo "| **Linux** | [breeze-${VERSION}.flatpak](https://github.com/$REPO/releases/download/$VERSION/breeze-${VERSION}.flatpak) |" >> release_body.md
           DEB_FILE_NAME=$(find release-assets/linux-deb -type f -name "*.deb" -printf "%f\n" | head -n 1)
           if [ -z "$DEB_FILE_NAME" ]; then

@@ -1,6 +1,6 @@
 {
   "@@locale": "zh_CN",
-  "appName": "Breeze",
+  "appName": "DCike",
   "common": {
     "ok": "确定",
     "cancel": "取消",
@@ -188,6 +188,9 @@
     "appLockSubtitle": "开启后进入应用需要验证",
     "autoFollowOnCollect": "收藏自动追更",
     "autoFollowOnCollectSubtitle": "开启后收藏漫画时将自动加入追更列表",
+    "autoCloudCollectOnCollect": "收藏自动云收藏",
+    "autoCloudCollectOnCollectSubtitle": "开启后，新增本地收藏时自动加入对应图源的云收藏，仅对已登录且支持云收藏的图源生效；失败不影响本地收藏。不会补传已有收藏，取消本地收藏不会取消云收藏。",
+    "autoCloudCollectFailed": "本地收藏已保留，自动云收藏未完成：$error",
     "leftHandMode": "左手优化",
     "leftHandModeSubtitle": "开启后将悬浮按钮等操作按钮移到屏幕左侧",
     "clickCoverToStartReading": "点击封面开始阅读",
@@ -315,7 +318,7 @@
     "changelog": "更新日志",
     "changelogSubtitle": "查看各个版本的更新记录",
     "aboutApp": "关于应用",
-    "aboutAppSubtitle": "关于 Breeze 的详细信息",
+    "aboutAppSubtitle": "关于 DCike 的详细信息",
     "pluginManagement": "插件管理",
     "debugMode": "调试模式",
     "debugAddress": "调试地址",

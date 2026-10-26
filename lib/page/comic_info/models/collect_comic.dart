@@ -198,6 +198,7 @@ Future<bool> toggleCloudComicFavorite({
   String legacyAllowCollectedReason = '',
   String? collectionTargetId,
   String? collectionTargetName,
+  bool suppressNeedLoginEvent = false,
 }) async {
   final result = await executeCloudFavoriteWorkflow(
     context: context,
@@ -215,6 +216,7 @@ Future<bool> toggleCloudComicFavorite({
     legacyAllowCollectedReason: legacyAllowCollectedReason,
     collectionTargetId: collectionTargetId,
     collectionTargetName: collectionTargetName,
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
   );
   if (result.status != FavoriteWorkflowStatus.completed) {
     throw FavoriteWorkflowIncompleteException(result);
@@ -237,6 +239,7 @@ Future<FavoriteWorkflowExecutionResult> executeCloudFavoriteWorkflow({
   String legacyAllowCollectedReason = '',
   String? collectionTargetId,
   String? collectionTargetName,
+  bool suppressNeedLoginEvent = false,
 }) async {
   final resolvedPluginId = (pluginId?.trim().isNotEmpty ?? false)
       ? pluginId!.trim()
@@ -250,6 +253,7 @@ Future<FavoriteWorkflowExecutionResult> executeCloudFavoriteWorkflow({
       currentStatus: currentStatus,
       collectionTargetId: collectionTargetId,
       collectionTargetName: collectionTargetName,
+      suppressNeedLoginEvent: suppressNeedLoginEvent,
     );
   } catch (error) {
     if (!_isMissingFavoriteWorkflowFunction(error)) {
@@ -266,6 +270,7 @@ Future<FavoriteWorkflowExecutionResult> executeCloudFavoriteWorkflow({
       comicId: comicId,
       action: action,
       currentStatus: currentStatus,
+      suppressNeedLoginEvent: suppressNeedLoginEvent,
     );
   }
 }
@@ -278,6 +283,7 @@ Future<FavoriteWorkflowExecutionResult> _runFavoriteWorkflow({
   required bool currentStatus,
   String? collectionTargetId,
   String? collectionTargetName,
+  bool suppressNeedLoginEvent = false,
 }) async {
   final target = <String, dynamic>{};
   if (collectionTargetId?.trim().isNotEmpty ?? false) {
@@ -290,6 +296,7 @@ Future<FavoriteWorkflowExecutionResult> _runFavoriteWorkflow({
   var response = await callUnifiedComicPlugin(
     pluginId: pluginId,
     fnPath: 'startFavoriteAction',
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
     core: {
       'comicId': comicId,
       'action': action.wireName,
@@ -333,6 +340,7 @@ Future<FavoriteWorkflowExecutionResult> _runFavoriteWorkflow({
         response = await callUnifiedComicPlugin(
           pluginId: pluginId,
           fnPath: 'continueFavoriteAction',
+          suppressNeedLoginEvent: suppressNeedLoginEvent,
           core: {
             'comicId': comicId,
             'action': action.wireName,
@@ -364,10 +372,12 @@ Future<FavoriteWorkflowExecutionResult> _runLegacyFavoriteWorkflow({
   required String comicId,
   required FavoriteWorkflowAction action,
   required bool currentStatus,
+  bool suppressNeedLoginEvent = false,
 }) async {
   final data = await callUnifiedComicPlugin(
     pluginId: pluginId,
     fnPath: 'toggleFavorite',
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
     core: {'comicId': comicId, 'currentFavorite': currentStatus},
     extern: const <String, dynamic>{},
   );
@@ -388,7 +398,10 @@ Future<FavoriteWorkflowExecutionResult> _runLegacyFavoriteWorkflow({
     );
   }
 
-  final folders = await _listCloudFavoriteFolders(pluginId);
+  final folders = await _listCloudFavoriteFolders(
+    pluginId,
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
+  );
   if (!context.mounted || folders.isEmpty) {
     return FavoriteWorkflowExecutionResult(
       status: FavoriteWorkflowStatus.completed,
@@ -410,6 +423,7 @@ Future<FavoriteWorkflowExecutionResult> _runLegacyFavoriteWorkflow({
     from: pluginId,
     comicId: comicId,
     folder: selectedFolder,
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
   );
   showSuccessToast(t.comicInfo.addedToFolder(name: selectedFolder.name));
   return FavoriteWorkflowExecutionResult(
@@ -847,10 +861,14 @@ Future<bool> toggleCloudComicLike({
   return data['liked'] as bool;
 }
 
-Future<List<_FavoriteFolder>> _listCloudFavoriteFolders(String from) async {
+Future<List<_FavoriteFolder>> _listCloudFavoriteFolders(
+  String from, {
+  bool suppressNeedLoginEvent = false,
+}) async {
   final data = await callUnifiedComicPlugin(
     from: from,
     fnPath: 'listFavoriteFolders',
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
     core: const <String, dynamic>{},
     extern: const <String, dynamic>{},
   );
@@ -869,10 +887,12 @@ Future<void> _moveCloudFavoriteToFolder({
   required String from,
   required String comicId,
   required _FavoriteFolder folder,
+  bool suppressNeedLoginEvent = false,
 }) async {
   await callUnifiedComicPlugin(
     from: from,
     fnPath: 'moveFavoriteToFolder',
+    suppressNeedLoginEvent: suppressNeedLoginEvent,
     core: {
       'comicId': comicId,
       'folderId': folder.id,
