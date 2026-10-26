@@ -11,6 +11,8 @@ permissions:
 
 jobs:
   update-plugin-list:
+    # 原项目的定时维护只在原仓库执行，DCike 使用独立的手动 iOS 构建。
+    if: github.repository == 'deretame/Breeze'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
