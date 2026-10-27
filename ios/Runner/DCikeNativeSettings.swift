@@ -384,9 +384,10 @@ struct DCikeSyncSettings: View {
     }
   }
   private var manualSyncSection: some View {
-    Section("手动同步") {
+    Section {
       Button("上传本地数据") { synchronize("upload") }
       Button("从云端恢复") { confirmDownload = true }
+    } header: { Text("手动同步")
     } footer: { Text("服务器信息和密码只保存在你的应用中；上传图源配置可能包含该图源的登录信息。") }
   }
   private var s3Section: some View {
