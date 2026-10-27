@@ -28,7 +28,10 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          # Keep the SDK/compiler stable because latest-stable can change
+          # independently of the source commit. Xcode 26.6 provides iOS 26
+          # UIKit Liquid Glass APIs used by the native views.
+          xcode-version: '26.6'
 
       - name: Read pinned Flutter version
         id: flutter-version
@@ -96,6 +99,26 @@ jobs:
           set -e
           echo "Flutter build exit code: $status" >> "$build_log"
           exit "$status"
+
+      - name: Publish compiler diagnostics
+        if: always()
+        run: |
+          set -uo pipefail
+          build_log="$RUNNER_TEMP/dcike-ios-build.log"
+          test -f "$build_log" || exit 0
+          {
+            echo '### Native iOS compiler diagnostics'
+            echo
+            echo '```text'
+            grep -E '(^|[[:space:]])(error:|fatal error:|SwiftCompile|CompileSwift|undefined symbol|BUILD FAILED)' "$build_log" | tail -n 120 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          grep -E '(^|[[:space:]])(error:|fatal error:|undefined symbol|BUILD FAILED)' "$build_log" | tail -n 40 | while IFS= read -r line; do
+            line=${line//$'%'/'%25'}
+            line=${line//$'\r'/'%0D'}
+            line=${line//$'\n'/'%0A'}
+            echo "::error::$line"
+          done
 
       - name: Upload build diagnostics
         if: always()
