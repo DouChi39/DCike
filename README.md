@@ -1,5 +1,7 @@
 # DCike
 
+> **项目公告：DCike 开发失败，现已停止更新。** 目前没有可供正式使用的完成版本，已有测试版本可能存在问题。感谢关注。
+
 DCike 是基于 [Breeze](https://github.com/deretame/Breeze) 开发的个人修改版本，原作者为 [windy（deretame）](https://github.com/deretame)。保留原项目的 [MPL 2.0 许可证](LICENSE)及版权声明。
 
 以下保留原项目说明，原项目发布链接指向 Breeze。
