@@ -1,9 +1,29 @@
 import SwiftUI
+import Network
+
+private final class DCikeReaderNetwork: ObservableObject {
+    @Published private(set) var symbol = "network.slash"
+    private let monitor = NWPathMonitor()
+    private let queue = DispatchQueue(label: "dcike.reader.network")
+    init() {
+        monitor.pathUpdateHandler = { [weak self] path in
+            let symbol: String
+            if path.status != .satisfied { symbol = "network.slash" }
+            else if path.usesInterfaceType(.wifi) { symbol = "wifi" }
+            else if path.usesInterfaceType(.cellular) { symbol = "antenna.radiowaves.left.and.right" }
+            else { symbol = "network" }
+            DispatchQueue.main.async { self?.symbol = symbol }
+        }
+        monitor.start(queue: queue)
+    }
+    deinit { monitor.cancel() }
+}
 
 @available(iOS 16.0, *)
 struct DCikeComicGrid: View {
     let items: [[String: Any]]
     var source: String = ""
+    var moveToFolder: (([String: Any]) -> Void)? = nil
     var body: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 104, maximum: 180), spacing: 14)], alignment: .leading, spacing: 20) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
@@ -11,16 +31,24 @@ struct DCikeComicGrid: View {
                 NavigationLink {
                     DCikeDetailPage(source: from, comicId: textValue(item["comicId"] ?? item["id"]))
                 } label: {
-                    VStack(alignment: .leading, spacing: 7) {
+                    ZStack(alignment: .bottomLeading) {
                         DCikeNativeImage(source: from, image: map(item["cover"]), comicId: textValue(item["comicId"] ?? item["id"]))
-                            .aspectRatio(0.7, contentMode: .fit).frame(maxWidth: .infinity)
-                            .background(Color(uiColor: .secondarySystemBackground)).clipShape(RoundedRectangle(cornerRadius: 12))
-                        Text(textValue(item["title"])).font(.subheadline).lineLimit(2).foregroundStyle(.primary)
-                        if !textValue(item["subtitle"] ?? item["chapterTitle"]).isEmpty {
-                            Text(textValue(item["subtitle"] ?? item["chapterTitle"])).font(.caption).lineLimit(1).foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .center, endPoint: .bottom)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(textValue(item["title"])).font(.subheadline.weight(.semibold)).lineLimit(2)
+                            if !textValue(item["subtitle"] ?? item["chapterTitle"]).isEmpty {
+                                Text(textValue(item["subtitle"] ?? item["chapterTitle"])).font(.caption).lineLimit(1)
+                            }
                         }
+                        .foregroundStyle(.white).padding(8)
                     }
-                }.buttonStyle(.plain)
+                    .aspectRatio(0.7, contentMode: .fit)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }.buttonStyle(.plain).contextMenu {
+                    if let moveToFolder { Button { moveToFolder(item) } label: { Label("移动到文件夹", systemImage: "folder") } }
+                }
             }
         }
     }
@@ -46,33 +74,60 @@ struct DCikeDetailPage: View {
             else if let error {
                 VStack(spacing: 16) { Text(error); Button("重新加载") { Task { await load() } } }.padding()
             } else {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 0) {
                     header
+                    detailContent
+                }
+            }
+        }
+        .navigationTitle("漫画详情").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if !loading && error == nil && detail["allowDownload"] as? Bool != false {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        if downloading && !selectedChapters.isEmpty { queueDownload() }
+                        else { downloading.toggle(); selectedChapters = [] }
+                    } label: { Image(systemName: downloading ? "checkmark" : "arrow.down.to.line") }
+                    .accessibilityLabel(downloading ? "完成下载选择" : "选择下载章节")
+                }
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if !loading && error == nil && !chapters.isEmpty && !downloading {
+                Button { reading = DCikeReadingRoute(index: resumeIndex) } label: {
+                    Label(map(detail["history"]).isEmpty ? "开始阅读" : "继续阅读", systemImage: "book")
+                }.buttonStyle(.borderedProminent).buttonBorderShape(.capsule).padding(16)
+            }
+        }
+        .refreshable { await load() }
+        .task { await load() }
+        .fullScreenCover(item: $reading, onDismiss: { Task { await load() } }) { route in
+            NavigationStack { DCikeReaderPage(source: source, comicId: comicId, chapters: chapters, initialIndex: route.index) }.environmentObject(model)
+        }
+    }
+    private var detailContent: some View {
+                VStack(alignment: .leading, spacing: 24) {
                     actions
                     if !textValue(info["description"]).isEmpty {
                         Text(textValue(info["description"])).font(.body).textSelection(.enabled)
                     }
                     ForEach(Array(rows(info["metadata"]).enumerated()), id: \.offset) { _, entry in
-                        HStack(alignment: .top) {
-                            Text(textValue(entry["name"])).foregroundStyle(.secondary).frame(width: 66, alignment: .leading)
-                            metadataValues(rows(entry["value"]))
+                        HStack(alignment: .top, spacing: 10) {
+                            Text(textValue(entry["name"]))
+                                .foregroundStyle(.secondary).padding(.horizontal, 10).padding(.vertical, 6)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.5)))
+                            metadataTags(rows(entry["value"]))
                         }.font(.subheadline)
                     }
                     HStack {
                         Text("章节").font(.title3.bold())
                         Spacer()
                         Button { reverse.toggle() } label: { Image(systemName: "arrow.up.arrow.down") }.accessibilityLabel("反转章节顺序")
-                        if detail["allowDownload"] as? Bool != false {
-                            Button(downloading ? "完成" : "下载") {
-                                if downloading && !selectedChapters.isEmpty { queueDownload() }
-                                else { downloading.toggle() }
-                            }
-                        }
                     }
                     if downloading {
                         HStack { Button("全选") { selectedChapters = Set(chapters.indices) }; Button("取消选择") { selectedChapters = [] }; Spacer(); Text("已选 \(selectedChapters.count) 章").foregroundStyle(.secondary) }
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: 10)], spacing: 10) {
+                    LazyVStack(spacing: 10) {
                         ForEach(reverse ? Array(chapters.indices.reversed()) : Array(chapters.indices), id: \.self) { index in
                             Button {
                                 if downloading {
@@ -82,36 +137,26 @@ struct DCikeDetailPage: View {
                                 HStack {
                                     Text(textValue(chapters[index]["name"])).lineLimit(2)
                                     if downloading && selectedChapters.contains(index) { Image(systemName: "checkmark.circle.fill") }
-                                }.frame(maxWidth: .infinity, minHeight: 36)
-                            }.buttonStyle(.bordered).buttonBorderShape(.capsule)
+                                    Spacer(minLength: 0)
+                                }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            }.buttonStyle(.bordered).buttonBorderShape(.roundedRectangle)
                         }
                     }
                     let recommendations = rows(detail["recommend"])
                     if !recommendations.isEmpty { Text("相关推荐").font(.title3.bold()); DCikeComicGrid(items: recommendations, source: source) }
-                }.padding(20)
-            }
-        }
-        .navigationTitle("漫画详情").navigationBarTitleDisplayMode(.inline)
-        .refreshable { await load() }
-        .task { await load() }
-        .fullScreenCover(item: $reading, onDismiss: { Task { await load() } }) { route in
-            NavigationStack { DCikeReaderPage(source: source, comicId: comicId, chapters: chapters, initialIndex: route.index) }.environmentObject(model)
-        }
+                }.padding(20).padding(.bottom, 66)
     }
     private var header: some View {
-        HStack(alignment: .top, spacing: 18) {
-            DCikeNativeImage(source: source, image: map(info["cover"]), comicId: comicId)
-                .frame(width: 112).clipShape(RoundedRectangle(cornerRadius: 14))
-            VStack(alignment: .leading, spacing: 12) {
-                Text(textValue(info["title"])).font(.title2.bold()).textSelection(.enabled)
+        ZStack(alignment: .bottomLeading) {
+            DCikeDetailHeroImage(source: source, comicId: comicId, image: map(info["cover"]))
+            LinearGradient(colors: [.clear, .black.opacity(0.8)], startPoint: .center, endPoint: .bottom)
+                .allowsHitTesting(false)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(textValue(info["title"])).font(.title.bold()).textSelection(.enabled)
                 metadataValues([map(info["creator"])]).font(.subheadline)
-                metadataValues(rows(info["titleMeta"])).font(.caption).foregroundStyle(.secondary)
-                if !chapters.isEmpty {
-                    Button(map(detail["history"]).isEmpty ? "开始阅读" : "继续阅读") { reading = DCikeReadingRoute(index: resumeIndex) }
-                        .buttonStyle(.borderedProminent).buttonBorderShape(.capsule)
-                }
-            }.frame(maxWidth: .infinity, alignment: .leading)
-        }
+                metadataValues(rows(info["titleMeta"])).font(.caption)
+            }.foregroundStyle(.white).padding(20)
+        }.frame(height: 460).clipped()
     }
     private var actions: some View {
         VStack(spacing: 12) {
@@ -159,11 +204,75 @@ struct DCikeDetailPage: View {
             }
         }
     }
+    private func metadataTags(_ values: [[String: Any]]) -> some View {
+        DCikeTagLayout(spacing: 8) {
+            ForEach(Array(values.enumerated()), id: \.offset) { _, value in
+                if !map(value["onTap"]).isEmpty {
+                    NavigationLink { DCikeActionDestination(action: map(value["onTap"]), source: source) } label: { tagLabel(value) }
+                } else { tagLabel(value) }
+            }
+        }
+    }
+    private func tagLabel(_ value: [String: Any]) -> some View {
+        Text(textValue(value["name"]))
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.accentColor.opacity(0.65)))
+    }
     private func queueDownload() {
         model.perform {
             _ = try await model.request("download", ["source": source, "comicId": comicId, "chapters": selectedChapters.sorted().map { chapters[$0] }])
             selectedChapters = []; downloading = false; model.message = "已加入下载队列。"
         }
+    }
+}
+
+@available(iOS 16.0, *)
+private struct DCikeDetailHeroImage: View {
+    @EnvironmentObject private var model: DCikeNativeModel
+    let source: String
+    let comicId: String
+    let image: [String: Any]
+    @State private var bitmap: UIImage?
+    var body: some View {
+        GeometryReader { geometry in
+            Group {
+                if let bitmap { Image(uiImage: bitmap).resizable().scaledToFill() }
+                else { Color(uiColor: .secondarySystemBackground) }
+            }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
+        }
+        .task(id: source + comicId + textValue(image["path"]) + textValue(image["url"])) {
+            guard let path = try? await model.request("image", ["source": source, "comicId": comicId, "image": image]) as? String else { return }
+            let loaded = await DCikeLoadImage(path: path)
+            if !Task.isCancelled { bitmap = loaded }
+        }
+    }
+}
+
+@available(iOS 16.0, *)
+private struct DCikeTagLayout: Layout {
+    var spacing: CGFloat
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(width: proposal.width ?? 0, subviews: subviews).size
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(width: bounds.width, subviews: subviews)
+        for (index, origin) in result.origins.enumerated() {
+            subviews[index].place(at: CGPoint(x: bounds.minX + origin.x, y: bounds.minY + origin.y), proposal: ProposedViewSize(width: bounds.width, height: nil))
+        }
+    }
+    private func arrange(width: CGFloat, subviews: Subviews) -> (size: CGSize, origins: [CGPoint]) {
+        let limit = width.isFinite && width > 0 ? width : CGFloat.greatestFiniteMagnitude
+        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0, maxWidth: CGFloat = 0
+        var origins: [CGPoint] = []
+        for view in subviews {
+            let size = view.sizeThatFits(ProposedViewSize(width: limit, height: nil))
+            if x > 0 && x + size.width > limit { y += rowHeight + spacing; x = 0; rowHeight = 0 }
+            origins.append(CGPoint(x: x, y: y))
+            x += size.width + spacing
+            maxWidth = max(maxWidth, x - spacing)
+            rowHeight = max(rowHeight, size.height)
+        }
+        return (CGSize(width: min(limit, maxWidth), height: y + rowHeight), origins)
     }
 }
 
@@ -202,9 +311,12 @@ struct DCikeReaderPage: View {
     @State private var scrollAnchor: UnitPoint = .top
     @State private var pageFrames: [Int: CGRect] = [:]
     @State private var paused = false
+    @State private var einkMask = false
+    @State private var comicOverrides: [String: Any] = [:]
+    @StateObject private var network = DCikeReaderNetwork()
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.colorScheme) private var colorScheme
-    private var preferences: [String: Any] { map(model.settings["readSetting"]) }
+    private var preferences: [String: Any] { map(model.settings["readSetting"]).merging(comicOverrides) { _, replacement in replacement } }
     private var mode: Int { preferences["readMode"] as? Int ?? 0 }
     private var reverse: Bool { mode == 2 }
     private var doublePage: Bool { preferences["doublePageMode"] as? Bool == true }
@@ -239,6 +351,7 @@ struct DCikeReaderPage: View {
                     }.tabViewStyle(.page(indexDisplayMode: .never))
                         .environment(\.layoutDirection, reverse ? .rightToLeft : .leftToRight)
                 }
+                if einkMask && mode != 0 { Color.white.allowsHitTesting(false) }
                 if colorScheme == .dark && preferences["readFilterEnabled"] as? Bool == true {
                     Color.black.opacity(min(1, max(0, number("readFilterOpacityPercent", 50) / 100))).allowsHitTesting(false)
                 }
@@ -279,20 +392,32 @@ struct DCikeReaderPage: View {
                 }.padding(.horizontal, 20).padding(.vertical, 10).background(.bar)
             }
         }
-        .sheet(isPresented: $showOptions) { NavigationStack { DCikeReaderOptions() }.environmentObject(model) }
-        .task { UIDevice.current.isBatteryMonitoringEnabled = true; chapterIndex = min(max(0, initialIndex), max(0, chapters.count - 1)); await load() }
+        .sheet(isPresented: $showOptions) { NavigationStack { DCikeReaderOptions(source: source, comicId: comicId, onUpdate: updateOverrides) }.environmentObject(model) }
+        .task { UIDevice.current.isBatteryMonitoringEnabled = true; chapterIndex = min(max(0, initialIndex), max(0, chapters.count - 1)); if let result = try? await model.request("comicReadSettings", ["source": source, "comicId": comicId]) { updateOverrides(map(result)) }; await load() }
         .onChange(of: pageIndex) { value in
             zoom = 1
             guard !loading else { return }
             model.perform { _ = try await model.request("progress", ["page": value, "chapterId": chapterId]) }
         }
         .task(id: chapterId + ":" + String(pageIndex)) { await preload() }
+        .task(id: "\(chapterId):\(pageIndex):\(mode):\(loading):\(preferences["einkOptimization"] as? Bool == true):\(number("einkDelayMs", 120))") {
+            guard mode != 0 && preferences["einkOptimization"] as? Bool == true && !loading else { einkMask = false; return }
+            einkMask = true
+            do { try await Task.sleep(nanoseconds: UInt64(min(500, max(50, number("einkDelayMs", 120))) * 1_000_000)) }
+            catch { return }
+            einkMask = false
+        }
         .onChange(of: scenePhase) { phase in if phase != .active { saveProgress() } }
         .onChange(of: preferences["landscapeReader"] as? Bool) { value in model.perform { _ = try await model.request("readerOrientation", ["landscape": value == true]) } }
         .onDisappear {
             let page = pageIndex; let chapter = chapterId
             model.perform { _ = try await model.request("endReading", ["page": page, "chapterId": chapter]) }
         }
+    }
+    private func updateOverrides(_ result: [String: Any]) {
+        let effective = map(result["effective"])
+        let keys = result["overrides"] as? [String] ?? []
+        comicOverrides = effective.filter { keys.contains($0.key) }
     }
     private var background: Color {
         switch textValue(preferences["readerBackgroundMode"]) { case "black": return .black; case "white": return .white; case "grey": return Color(white: 0.18); default: return Color(uiColor: .systemBackground) }
@@ -399,6 +524,13 @@ struct DCikeReaderPage: View {
             guard !Task.isCancelled, chapter == chapterId else { return }
             _ = try? await model.request("image", ["source": source, "comicId": comicId, "chapterId": chapter, "image": pages[index], "page": true, "index": index])
         }
+        let chapterCount = min(3, max(0, Int(number("preloadChapterCount", 1))))
+        let currentChapter = chapterIndex
+        guard chapterCount > 0, currentChapter + 1 < chapters.count else { return }
+        for index in (currentChapter + 1)..<min(chapters.count, currentChapter + 1 + chapterCount) {
+            guard !Task.isCancelled, currentChapter == chapterIndex, chapter == chapterId else { return }
+            _ = try? await model.request("prefetchChapter", ["source": source, "comicId": comicId, "chapter": chapters[index]])
+        }
     }
     private var pageInformation: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -408,14 +540,16 @@ struct DCikeReaderPage: View {
                     if textValue(preferences["pageInfoHorizontalPosition"]) != "left" { Spacer() }
                     HStack(spacing: 10) {
                         if preferences["pageInfoShowPage"] as? Bool != false { Text("\(pageIndex + 1)/\(pages.count)") }
-                        if preferences["pageInfoShowNetwork"] as? Bool != false { Image(systemName: "network") }
+                        if preferences["pageInfoShowNetwork"] as? Bool != false { Image(systemName: network.symbol) }
                         if preferences["pageInfoShowBattery"] as? Bool == true && UIDevice.current.batteryLevel >= 0 { Text("\(Int(UIDevice.current.batteryLevel * 100))%") }
                         if preferences["pageInfoShowTime"] as? Bool != false { Text(context.date, style: .time) }
                     }.font(.system(size: CGFloat(min(32, max(8, number("pageInfoFontSize", 12)))))).monospacedDigit()
                     if textValue(preferences["pageInfoHorizontalPosition"]) != "right" { Spacer() }
                 }.padding(CGFloat(min(80, max(0, number("pageInfoEdgePadding", 12))))).opacity(min(1, max(0, number("pageInfoOpacityPercent", 82) / 100)))
                 if textValue(preferences["pageInfoVerticalPosition"]) == "top" { Spacer() }
-            }.allowsHitTesting(false)
+            }
+            .ignoresSafeArea(edges: textValue(preferences["pageInfoVerticalPosition"]) == "top" && preferences["pageInfoTopInStatusBar"] as? Bool == true ? .top : [])
+            .allowsHitTesting(false)
         }
     }
 }
@@ -429,20 +563,76 @@ private struct DCikeReaderPositionKey: PreferenceKey {
 struct DCikeReaderOptions: View {
     @EnvironmentObject var model: DCikeNativeModel
     @Environment(\.dismiss) var dismiss
-    private var value: [String: Any] { map(model.settings["readSetting"]) }
+    let source: String
+    let comicId: String
+    let onUpdate: ([String: Any]) -> Void
     var body: some View {
         Form {
-            Picker("阅读方式", selection: Binding(get: { value["readMode"] as? Int ?? 0 }, set: { save("readMode", $0) })) {
-                Text("上下滚动").tag(0); Text("从左向右翻页").tag(1); Text("从右向左翻页").tag(2)
-            }
-            Toggle("反向横向翻页", isOn: Binding(get: { value["reverseHorizontalPageTurn"] as? Bool ?? false }, set: { save("reverseHorizontalPageTurn", $0) }))
-            Toggle("双击缩放", isOn: Binding(get: { value["doubleTapZoom"] as? Bool ?? false }, set: { save("doubleTapZoom", $0) }))
-            Picker("阅读背景", selection: Binding(get: { textValue(value["readerBackgroundMode"]) }, set: { save("readerBackgroundMode", $0) })) {
-                Text("跟随系统").tag("auto"); Text("黑色").tag("black"); Text("白色").tag("white"); Text("灰色").tag("grey")
-            }
+            NavigationLink { DCikePreferenceEditor(page: .reader) } label: { Label("通用设置、手势与信息条", systemImage: "slider.horizontal.3") }
+            NavigationLink { DCikePreferenceEditor(page: .reader, comicSource: source, comicId: comicId, onComicUpdate: onUpdate) } label: { Label("本漫画设置", systemImage: "book") }
         }.navigationTitle("阅读设置").toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
     }
-    private func save(_ key: String, _ value: Any) { model.perform { model.settings = map(try await model.request("settings", ["patch": ["readSetting": [key: value]]])) } }
+}
+
+@available(iOS 16.0, *)
+private struct DCikePerComicReaderOptions: View {
+    @EnvironmentObject private var model: DCikeNativeModel
+    let source: String
+    let comicId: String
+    let onUpdate: ([String: Any]) -> Void
+    @State private var values: [String: Any] = [:]
+    @State private var changedKeys: Set<String> = []
+    @State private var loaded = false
+    @State private var saving = false
+    @State private var error: String?
+    var body: some View {
+        Form {
+            Section("阅读模式") {
+                Picker("阅读方式", selection: integer("readMode", 0)) {
+                    Text("上下滚动").tag(0); Text("从左向右翻页").tag(1); Text("从右向左翻页").tag(2)
+                }
+                Toggle("反向横向翻页", isOn: boolean("reverseHorizontalPageTurn"))
+            }
+            Section("自动阅读") {
+                Toggle("自动滚动", isOn: boolean("autoScroll"))
+                Toggle("平滑自动滚动", isOn: boolean("autoScrollSmooth"))
+                Toggle("隐藏暂停按钮", isOn: boolean("autoScrollHidePauseButton"))
+                numeric("滚动间隔（毫秒）", "autoScrollColumnIntervalMs", 1600)
+                numeric("翻页间隔（毫秒）", "autoScrollPageIntervalMs", 3000)
+                numeric("每次滚动距离（%）", "autoScrollColumnDistancePercent", 72)
+            }
+            Section("翻页模式") {
+                Picker("点击翻页区域", selection: string("tapPageTurnMode", "rightHand")) {
+                    Text("全屏").tag("fullScreen"); Text("左手").tag("leftHand"); Text("右手").tag("rightHand")
+                }
+                Toggle("连续阅读时点击翻页", isOn: boolean("tapPageTurnInWebtoon"))
+            }
+            Section { Button("恢复跟随全局设置", role: .destructive) { Task { await update(reset: true) } } }
+        }
+        .disabled(!loaded || saving)
+        .navigationTitle("本漫画设置")
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("保存") { Task { await update(reset: false) } }.disabled(!loaded || saving) } }
+        .task { await fetch() }
+        .alert("设置未完成", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("好", role: .cancel) {} } message: { Text(error ?? "") }
+    }
+    private func boolean(_ key: String) -> Binding<Bool> { Binding(get: { values[key] as? Bool ?? false }, set: { values[key] = $0; changedKeys.insert(key) }) }
+    private func integer(_ key: String, _ fallback: Int) -> Binding<Int> { Binding(get: { values[key] as? Int ?? fallback }, set: { values[key] = $0; changedKeys.insert(key) }) }
+    private func string(_ key: String, _ fallback: String) -> Binding<String> { Binding(get: { values[key] as? String ?? fallback }, set: { values[key] = $0; changedKeys.insert(key) }) }
+    private func numeric(_ title: String, _ key: String, _ fallback: Int) -> some View {
+        HStack { Text(title); Spacer(); TextField(title, value: integer(key, fallback), format: .number).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(width: 90) }
+    }
+    private func fetch() async {
+        do { let result = map(try await model.request("comicReadSettings", ["source": source, "comicId": comicId])); values = map(result["effective"]); onUpdate(result); loaded = true }
+        catch { self.error = error.localizedDescription }
+    }
+    private func update(reset: Bool) async {
+        saving = true
+        defer { saving = false }
+        do {
+            let result = map(try await model.request("comicReadSettings", ["source": source, "comicId": comicId, "reset": reset, "patch": values.filter { changedKeys.contains($0.key) }]))
+            values = map(result["effective"]); changedKeys = []; onUpdate(result)
+        } catch { self.error = error.localizedDescription }
+    }
 }
 
 @available(iOS 16.0, *)
@@ -456,8 +646,12 @@ struct DCikeLibraryPage: View {
         ScrollView {
             VStack(spacing: 20) {
                 Picker("书架内容", selection: $kind) { Text("收藏").tag("favorite"); Text("历史").tag("history"); Text("下载").tag("download"); Text("追更").tag("follow") }.pickerStyle(.segmented)
-                if items.isEmpty { Label("这里还没有漫画", systemImage: "books.vertical").foregroundStyle(.secondary).padding(.top, 70) }
-                DCikeComicGrid(items: items.filter { query.isEmpty || textValue($0["title"]).localizedCaseInsensitiveContains(query) })
+                if kind == "favorite" {
+                    DCikeFavoriteFolderContent(path: "", query: query)
+                } else {
+                    if items.isEmpty { Label("这里还没有漫画", systemImage: "books.vertical").foregroundStyle(.secondary).padding(.top, 70) }
+                    DCikeComicGrid(items: items.filter { query.isEmpty || textValue($0["title"]).localizedCaseInsensitiveContains(query) })
+                }
             }.padding(20)
         }.navigationTitle("书架").searchable(text: $query, prompt: "查找书架中的漫画")
             .toolbar { NavigationLink { DCikeDownloadTasksPage() } label: { Image(systemName: "arrow.down.circle") }.accessibilityLabel("下载任务") }
@@ -471,6 +665,65 @@ struct DCikeLibraryPage: View {
             }.refreshable { await load() }
     }
     private func load() async { do { items = rows(try await model.request("library", ["kind": kind])) } catch { model.message = error.localizedDescription } }
+}
+
+@available(iOS 16.0, *)
+struct DCikeFavoriteFolderContent: View {
+    @EnvironmentObject private var model: DCikeNativeModel
+    let path: String
+    var query = ""
+    @State private var folders: [[String: Any]] = []
+    @State private var items: [[String: Any]] = []
+    @State private var destinations: [[String: Any]] = []
+    @State private var folderName = ""
+    @State private var creating = false
+    @State private var movingKey: String? = nil
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                if !path.isEmpty { Text(path.split(separator: "/").last.map(String.init) ?? "收藏").font(.headline) }
+                Spacer()
+                Button { folderName = ""; creating = true } label: { Label("新建文件夹", systemImage: "folder.badge.plus") }
+            }
+            ForEach(Array(folders.enumerated()), id: \.offset) { _, folder in
+                let folderPath = textValue(folder["path"])
+                NavigationLink {
+                    ScrollView { DCikeFavoriteFolderContent(path: folderPath).padding(20) }
+                        .navigationTitle(textValue(folder["name"])).navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    Label(textValue(folder["name"]), systemImage: "folder.fill")
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                }.buttonStyle(.plain)
+            }
+            if items.isEmpty && folders.isEmpty { Label("这里还没有漫画", systemImage: "books.vertical").foregroundStyle(.secondary).frame(maxWidth: .infinity).padding(.top, 50) }
+            DCikeComicGrid(items: items.filter { query.isEmpty || textValue($0["title"]).localizedCaseInsensitiveContains(query) }, moveToFolder: { item in movingKey = textValue(item["uniqueKey"]) })
+        }
+        .task(id: model.revision) { await load() }
+        .alert("新建文件夹", isPresented: $creating) {
+            TextField("文件夹名称", text: $folderName)
+            Button("取消", role: .cancel) { }
+            Button("创建") { model.perform { _ = try await model.request("createFavoriteFolder", ["path": path, "name": folderName]); await load() } }
+        }
+        .confirmationDialog("移动到文件夹", isPresented: Binding(get: { movingKey != nil }, set: { if !$0 { movingKey = nil } }), titleVisibility: .visible) {
+            ForEach(Array(destinations.enumerated()), id: \.offset) { _, folder in
+                let target = textValue(folder["path"])
+                if target != path {
+                    Button(textValue(folder["name"])) {
+                        let key = movingKey ?? ""
+                        movingKey = nil
+                        model.perform { _ = try await model.request("moveFavorite", ["path": path, "target": target, "key": key]); await load() }
+                    }
+                }
+            }
+            Button("取消", role: .cancel) { movingKey = nil }
+        }
+    }
+    private func load() async {
+        do {
+            let result = map(try await model.request("favoriteFolder", ["path": path]))
+            folders = rows(result["folders"]); items = rows(result["items"]); destinations = rows(result["destinations"])
+        } catch { model.message = error.localizedDescription }
+    }
 }
 
 @available(iOS 16.0, *)

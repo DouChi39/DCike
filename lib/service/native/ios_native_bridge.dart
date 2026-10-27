@@ -6,11 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:zephyr/config/global/global_setting.dart';
+import 'package:zephyr/cubit/comic_read_preference_cubit.dart';
 import 'package:zephyr/main.dart';
 import 'package:zephyr/network/http/picture/picture.dart';
 import 'package:zephyr/network/http/plugin/unified_comic_plugin.dart';
 import 'package:zephyr/network/sync/sync_service.dart' as sync;
 import 'package:zephyr/page/comic_follow/cubit/comic_follow_cubit.dart';
+import 'package:zephyr/page/bookshelf/service/comic_folder_service.dart';
+import 'package:zephyr/page/bookshelf/service/comic_link_service.dart';
+import 'package:zephyr/object_box/model.dart';
 import 'package:zephyr/page/comic_info/method/get_plugin_detail.dart';
 import 'package:zephyr/page/comic_info/models/auto_cloud_favorite.dart';
 import 'package:zephyr/page/comic_info/models/collect_comic.dart';
@@ -45,6 +49,8 @@ class IosNativeBridge {
   final ComicFollowCubit _follows;
   final _subscriptions = <StreamSubscription<dynamic>>[];
   final _details = <String, PluginComicDetail>{};
+  final _prefetchedChapters = <String, Future<NormalComicEpInfo>>{};
+  int _readingGeneration = 0;
   NormalComicEpInfo? _reading;
   int _readPage = 0;
   int _readOrder = 0;
@@ -90,6 +96,9 @@ class IosNativeBridge {
       );
       _subscriptions.add(
         PluginRegistryService.I.initOkStream.listen((_) => _changed()),
+      );
+      _subscriptions.add(
+        PluginRegistryService.I.infoStream.listen((_) => _changed()),
       );
       _subscriptions.add(follows.stream.listen((_) => _changed()));
       _initialized = true;
@@ -149,6 +158,24 @@ class IosNativeBridge {
     }
   }
 
+  String _chapterKey(String source, String id, Map<String, dynamic> chapter) =>
+      jsonEncode([source, id, chapter['order'], chapter['id'], chapter['requestId'], chapter['logicalKey'], chapter['storageChapterId'], chapter['extern']]);
+
+  Future<NormalComicEpInfo> _readChapter(
+    String source, String id, PluginComicDetail detail, Map<String, dynamic> chapter,
+  ) async {
+    final order = (chapter['order'] as num?)?.toInt() ?? 0;
+    try {
+      return await getPluginReadSnapshot(
+        id, order, source, detail.source, chapter['id']?.toString(),
+        chapter['requestId']?.toString() ?? '', chapter['logicalKey']?.toString() ?? '',
+        chapter['storageChapterId']?.toString() ?? '', asJsonMap(chapter['extern']),
+      );
+    } catch (_) {
+      return getPluginInfoFromLocal(source, id, order);
+    }
+  }
+
   Future<dynamic> _request(String method, Map<String, dynamic> a) async {
     final source = a['source']?.toString() ?? '';
     final id = a['comicId']?.toString() ?? '';
@@ -204,6 +231,29 @@ class IosNativeBridge {
           ),
         );
         return settings.state.toJson();
+      case 'comicReadSettings':
+        final current = ComicReadPreferenceService.resolveEffective(
+          settings.state.readSetting,
+          ComicReadPreferenceService.findOverrideSetting(source, id),
+        );
+        if (a['reset'] == true) {
+          await ComicReadPreferenceService.clearPreference(source, id);
+        } else if (a['patch'] != null) {
+          final patch = asJsonMap(a['patch']);
+          final updated = ReadSettingState.fromJson(
+            mergeNativeSettings(current.toJson(), patch),
+          );
+          await ComicReadPreferenceService.upsertOverride(
+            source, id, current, updated, includeKeys: patch.keys.toSet(),
+          );
+        }
+        final override = ComicReadPreferenceService.findOverrideSetting(source, id);
+        return {
+          'effective': ComicReadPreferenceService.resolveEffective(
+            settings.state.readSetting, override,
+          ).toJson(),
+          'overrides': override?.keys.toList() ?? <String>[],
+        };
       case 'image':
         final image = asJsonMap(a['image']);
         final url = (image['url'] ?? image['fileServer'] ?? '').toString();
@@ -308,27 +358,80 @@ class IosNativeBridge {
         return follows.isFollowing(source, id);
       case 'library':
         return _library(a['kind']?.toString() ?? 'favorite');
+      case 'favoriteFolder':
+        final path = a['path']?.toString() ?? '';
+        const type = ComicFolderType.favorite;
+        if (path.isNotEmpty && ComicFolderService.folderSyncIdByPath(path, type) == null) {
+          throw StateError('文件夹不存在');
+        }
+        final keys = ComicLinkService.listLinks(path, type)
+            .map((link) => link.comicUniqueKey).toSet();
+        return {
+          'folders': ComicFolderService.listChildFolders(path, type)
+              .map((folder) => {'name': folder.name, 'path': '$path/${folder.name}'})
+              .toList(),
+          'items': _library('favorite').where((item) => keys.contains(item['uniqueKey'])).toList(),
+          'destinations': [
+            {'name': '收藏根目录', 'path': ''},
+            ...ComicFolderService.listAllFolders(type).map((folder) => {
+              'name': ComicFolderService.folderPath(folder),
+              'path': ComicFolderService.folderPath(folder),
+            }),
+          ],
+        };
+      case 'createFavoriteFolder':
+        final parent = a['path']?.toString() ?? '';
+        if (parent.isNotEmpty && ComicFolderService.folderSyncIdByPath(parent, ComicFolderType.favorite) == null) {
+          throw StateError('文件夹不存在');
+        }
+        ComicFolderService.createFolder(parent, a['name']?.toString() ?? '', ComicFolderType.favorite);
+        return null;
+      case 'moveFavorite':
+        final from = a['path']?.toString() ?? '';
+        final target = a['target']?.toString() ?? '';
+        final key = a['key']?.toString() ?? '';
+        if (from.isNotEmpty && ComicFolderService.folderSyncIdByPath(from, ComicFolderType.favorite) == null) {
+          throw StateError('当前文件夹不存在');
+        }
+        if (from == target) return null;
+        if (key.isEmpty || (target.isNotEmpty && ComicFolderService.folderSyncIdByPath(target, ComicFolderType.favorite) == null)) {
+          throw StateError('漫画或目标文件夹不存在');
+        }
+        if (!ComicLinkService.listLinks(from, ComicFolderType.favorite).any((link) => link.comicUniqueKey == key)) {
+          throw StateError('漫画不在当前文件夹');
+        }
+        ComicLinkService.batchMoveComics({key}, from, target, ComicFolderType.favorite);
+        return null;
+      case 'prefetchChapter':
+        final generation = _readingGeneration;
+        final d = _details['$source:$id'] ?? await _detail(source, id);
+        if (generation != _readingGeneration) return null;
+        final chapter = asJsonMap(a['chapter']);
+        final key = _chapterKey(source, id, chapter);
+        if (!_prefetchedChapters.containsKey(key) && _prefetchedChapters.length >= 3) {
+          _prefetchedChapters.remove(_prefetchedChapters.keys.first);
+        }
+        final future = _prefetchedChapters.putIfAbsent(key, () => _readChapter(source, id, d, chapter));
+        try {
+          await future;
+        } catch (_) {
+          if (identical(_prefetchedChapters[key], future)) _prefetchedChapters.remove(key);
+          rethrow;
+        }
+        return null;
       case 'chapter':
         final d = _details['$source:$id'] ?? await _detail(source, id);
         final chapter = asJsonMap(a['chapter']);
         final order = (chapter['order'] as num?)?.toInt() ?? 0;
         ReaderHistoryService.instance.stop();
         await ReaderHistoryService.instance.flush();
+        final cached = _prefetchedChapters.remove(_chapterKey(source, id, chapter));
         NormalComicEpInfo ep;
         try {
-          ep = await getPluginReadSnapshot(
-            id,
-            order,
-            source,
-            d.source,
-            chapter['id']?.toString(),
-            chapter['requestId']?.toString() ?? '',
-            chapter['logicalKey']?.toString() ?? '',
-            chapter['storageChapterId']?.toString() ?? '',
-            asJsonMap(chapter['extern']),
-          );
+          ep = await (cached ?? _readChapter(source, id, d, chapter));
         } catch (_) {
-          ep = await getPluginInfoFromLocal(source, id, order);
+          if (cached == null) rethrow;
+          ep = await _readChapter(source, id, d, chapter);
         }
         _reading = ep;
         _readOrder = order;
@@ -371,6 +474,8 @@ class IosNativeBridge {
         }
         return null;
       case 'endReading':
+        _readingGeneration++;
+        _prefetchedChapters.clear();
         ReaderHistoryService.instance.stop();
         if (a['chapterId'] == _reading?.epId && a['page'] is num) {
           _readPage = nativePageToHistory((a['page'] as num).toInt());
@@ -493,6 +598,15 @@ class IosNativeBridge {
             comicFollowCubit: follows,
           );
         }
+        return null;
+      case 'testSyncConnection':
+        final draft = asJsonMap(a['syncSetting']);
+        final state = GlobalSettingState.fromJson(
+          mergeNativeSettings(settings.state.toJson(), {'syncSetting': draft}),
+        );
+        final adapter = sync.createSyncAdapter(state);
+        if (adapter == null) throw StateError('请先填写完整的同步配置');
+        await adapter.testConnection();
         return null;
       case 'export':
         final root = await getFilePath();

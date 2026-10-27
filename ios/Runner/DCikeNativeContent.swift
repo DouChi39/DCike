@@ -324,15 +324,21 @@ struct DCikeContentComicCard: View {
   private var itemSource: String { contentText(item["source"]).isEmpty ? source : contentText(item["source"]) }
   var body: some View {
     NavigationLink { DCikeDetailPage(source: itemSource, comicId: contentText(item["id"] ?? item["comicId"])) } label: {
-      VStack(alignment: .leading, spacing: 6) {
-        DCikeContentImage(source: itemSource, image: contentMap(item["cover"]), comicId: contentText(item["id"] ?? item["comicId"]))
-          .aspectRatio(0.7, contentMode: .fit)
-          .clipShape(RoundedRectangle(cornerRadius: 12))
-        Text(contentText(item["title"])).font(.subheadline).foregroundStyle(.primary).lineLimit(2)
-        if !contentText(item["subtitle"]).isEmpty {
-          Text(contentText(item["subtitle"])).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+      DCikeContentImage(source: itemSource, image: contentMap(item["cover"]), comicId: contentText(item["id"] ?? item["comicId"]))
+        .aspectRatio(0.7, contentMode: .fit)
+        .overlay(alignment: .bottom) {
+          VStack(alignment: .leading, spacing: 3) {
+            Text(contentText(item["title"])).font(.subheadline.weight(.semibold)).lineLimit(2)
+            if !contentText(item["subtitle"]).isEmpty {
+              Text(contentText(item["subtitle"])).font(.caption).lineLimit(1)
+            }
+          }
+          .foregroundStyle(.white)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .padding(8)
+          .background(LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom))
         }
-      }.frame(maxWidth: .infinity, alignment: .leading)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }.buttonStyle(.plain)
   }
 }
@@ -357,7 +363,8 @@ struct DCikeContentImage: View {
     .task(id: key) {
       picture = nil
       guard let path = (try? await model.request("image", ["source": source, "comicId": comicId, "image": image, "pictureType": pictureType])) as? String else { return }
-      if !Task.isCancelled { picture = UIImage(contentsOfFile: path) }
+      let loaded = await DCikeLoadImage(path: path)
+      if !Task.isCancelled { picture = loaded }
     }
     .accessibilityHidden(true)
   }
@@ -897,27 +904,28 @@ struct DCikeDiscoverPage: View {
         NavigationLink { DCikePluginStore() } label: { Label("图源商店", systemImage: "square.grid.2x2") }
         NavigationLink { DCikeSearchPage() } label: { Label("搜索所有图源", systemImage: "magnifyingglass") }
       }
-      ForEach(orderedContentPlugins(model.plugins).indices, id: \.self) { index in
-        let item = orderedContentPlugins(model.plugins)[index]
-        let source = contentText(item["id"])
+      Section("图源") {
+      ForEach(orderedContentPlugins(model.plugins).map { contentText($0["id"]) }, id: \.self) { source in
+        if let item = model.plugins.first(where: { contentText($0["id"]) == source }) {
         let info = contentMap(item["info"])
-        Section {
-          Toggle(isOn: Binding(get: { item["enabled"] as? Bool == true }, set: { enabled in
-            model.perform { _ = try await model.request("pluginEnabled", ["source": source, "value": enabled]); await model.refresh() }
-          })) { Label(contentText(item["name"]), systemImage: "puzzlepiece.extension") }
-          if item["enabled"] as? Bool == true {
-            NavigationLink { DCikeSearchPage(source: source) } label: { Label("搜索", systemImage: "magnifyingglass") }
-            ForEach(functions(info).indices, id: \.self) { functionIndex in
-              let function = functions(info)[functionIndex]
-              NavigationLink {
-                DCikeActionDestination(action: functionAction(function), source: source)
-              } label: { Text(contentText(function["title"]).isEmpty ? "图源功能" : contentText(function["title"])) }
+          DisclosureGroup {
+            Toggle(isOn: Binding(get: { item["enabled"] as? Bool == true }, set: { enabled in
+              model.perform { _ = try await model.request("pluginEnabled", ["source": source, "value": enabled]); await model.refresh() }
+            })) { Text("启用图源") }
+            if item["enabled"] as? Bool == true {
+              NavigationLink { DCikeSearchPage(source: source) } label: { Label("搜索", systemImage: "magnifyingglass") }
+              ForEach(functions(info).indices, id: \.self) { functionIndex in
+                let function = functions(info)[functionIndex]
+                NavigationLink {
+                  DCikeActionDestination(action: functionAction(function), source: source)
+                } label: { Text(contentText(function["title"]).isEmpty ? "图源功能" : contentText(function["title"])) }
+              }
+              if item["ready"] as? Bool != true { Text("图源正在初始化，稍后可下拉刷新。") }
             }
-          }
-          NavigationLink { DCikePluginSettings(source: source) } label: { Label("账号与图源设置", systemImage: "gearshape") }
-        } header: { Text(contentText(item["name"])) } footer: {
-          if item["enabled"] as? Bool == true && item["ready"] as? Bool != true { Text("图源正在初始化，稍后可下拉刷新。") }
+            NavigationLink { DCikePluginSettings(source: source, name: contentText(item["name"])) } label: { Label("账号与图源设置", systemImage: "gearshape") }
+          } label: { Label(contentText(item["name"]), systemImage: "puzzlepiece.extension") }
         }
+      }
       }
     }
     .navigationTitle("发现")

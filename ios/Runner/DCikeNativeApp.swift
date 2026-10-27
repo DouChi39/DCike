@@ -8,10 +8,17 @@ func textValue(_ value: Any?) -> String {
     return String(describing: value)
 }
 
+func DCikeLoadImage(path: String) async -> UIImage? {
+    await Task.detached(priority: .userInitiated) {
+        guard let image = UIImage(contentsOfFile: path) else { return nil }
+        return image.preparingForDisplay() ?? image
+    }.value
+}
+
 @MainActor
 final class DCikeNativeModel: ObservableObject {
     let channel: FlutterMethodChannel
-    @Published var settings: [String: Any] = [:]
+    @Published var settings: [String: Any] = [:] { didSet { onSettingsChanged?(settings) } }
     @Published var plugins: [[String: Any]] = []
     @Published var message: String?
     @Published var input: DCikeInputRequest?
@@ -24,6 +31,7 @@ final class DCikeNativeModel: ObservableObject {
     @Published private(set) var inputPresented = false
     private var queuedInput: (DCikeInputRequest, FlutterResult)?
     var onUnlock: (() -> Void)?
+    var onSettingsChanged: (([String: Any]) -> Void)?
 
     init(channel: FlutterMethodChannel) { self.channel = channel }
 
@@ -150,6 +158,14 @@ final class DCikeNativeCoordinator {
             reply(FlutterError(code: "NO_WINDOW", message: "无法打开 iOS 界面，请重新启动。", details: nil)); return
         }
         let controller = UIHostingController(rootView: DCikeNativeRoot().environmentObject(model))
+        model.onSettingsChanged = { [weak controller] settings in
+            switch textValue(settings["themeMode"]) {
+            case "light": controller?.overrideUserInterfaceStyle = .light
+            case "dark": controller?.overrideUserInterfaceStyle = .dark
+            default: controller?.overrideUserInterfaceStyle = .unspecified
+            }
+        }
+        model.onSettingsChanged?(model.settings)
         parent.addChild(controller)
         controller.view.translatesAutoresizingMaskIntoConstraints = false
         parent.view.addSubview(controller.view)
@@ -204,9 +220,21 @@ struct DCikeNativeRoot: View {
             NavigationStack { DCikeDiscoverPage() }.tabItem { Label("发现", systemImage: "safari") }.tag(3)
             NavigationStack { DCikeSettingsPage() }.tabItem { Label("设置", systemImage: "gearshape") }.tag(4)
         }
+        .modifier(DCikeScrollEdgeStyle())
     }
     private var colorScheme: ColorScheme? {
         switch textValue(model.settings["themeMode"]) { case "light": return .light; case "dark": return .dark; default: return nil }
+    }
+}
+
+@available(iOS 16.0, *)
+private struct DCikeScrollEdgeStyle: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        } else {
+            content
+        }
     }
 }
 
@@ -245,7 +273,9 @@ struct DCikeNativeImage: View {
                 let path = textValue(try await model.request("image", ["source": source, "image": image,
                     "comicId": comicId, "chapterId": chapterId, "page": page, "index": index]))
                 if Task.isCancelled { return }
-                bitmap = UIImage(contentsOfFile: path)
+                let loaded = await DCikeLoadImage(path: path)
+                if Task.isCancelled { return }
+                bitmap = loaded
                 failed = bitmap == nil
             } catch { failed = true }
         }

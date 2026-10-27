@@ -19,16 +19,6 @@ struct DCikeNativeSettings: View {
 
   var body: some View {
     Form {
-      Section {
-        NavigationLink { DCikeNativeAbout() } label: {
-          Label {
-            VStack(alignment: .leading, spacing: 4) {
-              Text("DCike").font(.headline)
-              Text("版本 x").font(.subheadline).foregroundStyle(.secondary)
-            }
-          } icon: { Image(systemName: "book.closed.fill").font(.title).foregroundStyle(.blue) }
-        }
-      }
       Section("个性化") {
         NavigationLink { DCikePreferenceEditor(page: .appearance) } label: { Label("外观与启动", systemImage: "paintpalette") }
         NavigationLink { DCikePreferenceEditor(page: .reader) } label: { Label("阅读设置", systemImage: "book") }
@@ -69,7 +59,7 @@ private func settingsAssign(_ map: inout [String: Any], _ path: String, _ value:
   else { var child = settingsMap(map[first]); settingsAssign(&child, parts[1], value); map[first] = child }
 }
 
-private enum PreferencePage: String {
+enum PreferencePage: String {
   case appearance = "外观与启动", reader = "阅读设置", bookshelf = "书架设置"
   case behavior = "收藏与使用习惯", network = "内容与网络", cache = "缓存管理"
 }
@@ -91,10 +81,14 @@ private struct PreferenceSection: Identifiable {
 }
 
 @available(iOS 16.0, *)
-private struct DCikePreferenceEditor: View {
+struct DCikePreferenceEditor: View {
   @EnvironmentObject private var model: DCikeNativeModel
   let page: PreferencePage
+  var comicSource: String? = nil
+  var comicId: String? = nil
+  var onComicUpdate: (([String: Any]) -> Void)? = nil
   @State private var draft: [String: Any] = [:]
+  @State private var changedPaths: Set<String> = []
   @State private var loaded = false
   @State private var saving = false
   @State private var message: String?
@@ -157,6 +151,9 @@ private struct DCikePreferenceEditor: View {
         .init(path: "readSetting.doublePageLeadingBlank", label: "双页首张留白", kind: .toggle),
         .init(path: "readSetting.sidePaddingEnabled", label: "左右留白", kind: .toggle),
         .init(path: "readSetting.sidePaddingPercent", label: "留白比例（%）", kind: .number)
+      ]), PreferenceSection(title: "墨水屏", fields: [
+        .init(path: "readSetting.einkOptimization", label: "墨水屏优化", kind: .toggle),
+        .init(path: "readSetting.einkDelayMs", label: "翻页延迟（毫秒）", kind: .number)
       ]), PreferenceSection(title: "预加载与自动滚动", fields: [
         .init(path: "readSetting.preloadImageCount", label: "预加载图片数", kind: .number),
         .init(path: "readSetting.preloadChapterCount", label: "预加载章节数", kind: .number),
@@ -186,13 +183,16 @@ private struct DCikePreferenceEditor: View {
       ForEach(sections) { section in
         Section(section.title) { ForEach(section.fields) { field in preferenceRow(field) } }
       }
+      if comicSource != nil {
+        Section { Button("恢复跟随全局设置", role: .destructive) { resetComicSettings() } }
+      }
     }
-    .navigationTitle(page.rawValue)
+    .navigationTitle(comicSource == nil ? page.rawValue : "本漫画设置")
     .navigationBarTitleDisplayMode(.inline)
     .toolbar { ToolbarItem(placement: .confirmationAction) {
       Button("保存") { save() }.disabled(!loaded || saving)
     } }
-    .task { if !loaded { draft = model.settings; loaded = true } }
+    .task { if !loaded { await loadDraft() } }
     .alert("设置", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好", role: .cancel) {} } message: { Text(message ?? "") }
   }
 
@@ -200,7 +200,7 @@ private struct DCikePreferenceEditor: View {
     VStack(alignment: .leading, spacing: 6) {
       switch field.kind {
       case .toggle:
-        Toggle(isOn: Binding(get: { settingsValue(draft, field.path) as? Bool ?? false }, set: { settingsAssign(&draft, field.path, $0) })) {
+        Toggle(isOn: Binding(get: { settingsValue(draft, field.path) as? Bool ?? false }, set: { assign(field.path, $0) })) {
           if field.path == "autoCloudCollectOnCollect" { Label(field.label, systemImage: "cloud") }
           else if field.path == "autoFollowOnCollect" { Label(field.label, systemImage: "bell") }
           else { Text(field.label) }
@@ -208,7 +208,7 @@ private struct DCikePreferenceEditor: View {
       case .choice(let options):
         Picker(field.label, selection: Binding(get: { settingsText(settingsValue(draft, field.path)) }, set: { value in
           let previous = settingsValue(draft, field.path)
-          settingsAssign(&draft, field.path, previous is NSNumber ? (Int(value) ?? 0) as Any : value)
+          assign(field.path, previous is NSNumber ? (Int(value) ?? 0) as Any : value)
         })) { ForEach(options.indices, id: \.self) { i in Text(options[i].1).tag(options[i].0) } }
       case .multiline:
         Text(field.label)
@@ -216,20 +216,104 @@ private struct DCikePreferenceEditor: View {
       case .secret:
         SecureField(field.label, text: textBinding(field.path)).textInputAutocapitalization(.never).autocorrectionDisabled()
       case .number:
-        HStack { Text(field.label); Spacer(); TextField(field.label, text: Binding(get: { settingsText(settingsValue(draft, field.path)) }, set: { if let v = Int($0), v >= 0 { settingsAssign(&draft, field.path, v) } })).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(maxWidth: 110) }
+        HStack { Text(field.label); Spacer(); TextField(field.label, text: Binding(get: { settingsText(settingsValue(draft, field.path)) }, set: { if let v = Int($0), v >= 0 { assign(field.path, v) } })).keyboardType(.numberPad).multilineTextAlignment(.trailing).frame(maxWidth: 110) }
       case .text:
         TextField(field.label, text: textBinding(field.path)).textInputAutocapitalization(.never).autocorrectionDisabled()
       }
-      if !field.hint.isEmpty { Text(field.hint).font(.footnote).foregroundStyle(.secondary) }
+      let hint = field.hint.isEmpty ? preferenceHint(field.path) : field.hint
+      if !hint.isEmpty { Text(hint).font(.footnote).foregroundStyle(.secondary) }
+    }
+  }
+  private func preferenceHint(_ path: String) -> String {
+    switch path {
+    case "themeMode": return "选择浅色、深色或跟随系统外观。"
+    case "welcomePageNum": return "选择启动后首先显示的页面。"
+    case "clickCoverToStartReading": return "点击漫画封面时直接开始阅读。"
+    case "leftHandModeEnabled": return "调整界面操作位置以方便左手使用。"
+    case "retryDownloadUntilSuccess": return "下载失败时自动重试。"
+    case "bookshelfSetting.homePageIndex": return "选择打开书架时显示的分类。"
+    case "bookshelfSetting.rememberFavoriteSort": return "保留收藏列表上次使用的排序方式。"
+    case "bookshelfSetting.rememberHistorySort": return "保留历史记录上次使用的排序方式。"
+    case "bookshelfSetting.rememberDownloadSort": return "保留下载列表上次使用的排序方式。"
+    case "bookshelfSetting.detailLayout": return "在书架中显示更多漫画信息。"
+    case "bookshelfSetting.reverseChapters": return "倒序显示章节。"
+    case "cacheSetting.autoCleanCache": return "根据缓存上限自动清理缓存。"
+    case "cacheSetting.cacheSizeLimit": return "设置图片缓存的大小上限。"
+    case "needCleanCache": return "下次启动时清理图片缓存。"
+    case "chineseConvertMode": return "选择漫画文字的简繁转换方式。"
+    case "proxySetting.enabled": return "通过设置的代理访问网络。"
+    case "proxySetting.type": return "选择代理服务器使用的协议。"
+    case "readSetting.readMode": return "选择连续滚动或横向翻页。"
+    case "readSetting.reverseHorizontalPageTurn": return "调整横向阅读的翻页方向。"
+    case "readSetting.tapPageTurnMode": return "选择点击屏幕翻页的区域。"
+    case "readSetting.tapPageTurnInWebtoon": return "连续阅读时也可点击屏幕翻页。"
+    case "readSetting.noAnimation": return "翻页时不显示动画。"
+    case "readSetting.doubleTapZoom": return "双击阅读页面以放大图片。"
+    case "readSetting.doubleTapOpenMenu": return "双击阅读页面以打开菜单。"
+    case "readSetting.readerBackgroundMode": return "选择阅读页面的背景颜色。"
+    case "readSetting.readFilterEnabled": return "在阅读图片上应用滤镜。"
+    case "readSetting.readFilterOpacityPercent": return "调整阅读滤镜的强度。"
+    case "readSetting.landscapeReader": return "阅读时使用横屏显示。"
+    case "readSetting.doublePageMode": return "同时显示两页漫画。"
+    case "readSetting.doublePageSeamless": return "减少双页之间的间隙。"
+    case "readSetting.doublePageLeadingBlank": return "双页阅读时在开头留出空白页。"
+    case "readSetting.sidePaddingEnabled": return "在阅读页面左右留出空白。"
+    case "readSetting.sidePaddingPercent": return "调整左右留白的比例。"
+    case "readSetting.einkOptimization": return "横向翻页时短暂显示白色画面，减少墨水屏残影。"
+    case "readSetting.einkDelayMs": return "设置横向翻页白色画面的显示时间，范围为 50 至 500 毫秒。"
+    case "readSetting.preloadImageCount": return "提前加载指定数量的图片。"
+    case "readSetting.preloadChapterCount": return "提前加载指定数量的章节。"
+    case "readSetting.autoScroll": return "阅读时自动滚动或翻页。"
+    case "readSetting.autoScrollSmooth": return "使用平滑的自动滚动。"
+    case "readSetting.autoScrollHidePauseButton": return "自动滚动时隐藏暂停按钮。"
+    case "readSetting.autoScrollColumnIntervalMs": return "设置连续阅读自动滚动的间隔。"
+    case "readSetting.autoScrollPageIntervalMs": return "设置自动翻页的间隔。"
+    case "readSetting.autoScrollColumnDistancePercent": return "设置每次自动滚动的距离。"
+    case "readSetting.pageInfoShowPage": return "在阅读页面显示当前页码。"
+    case "readSetting.pageInfoShowNetwork": return "在阅读页面显示网络状态。"
+    case "readSetting.pageInfoShowBattery": return "在阅读页面显示电量。"
+    case "readSetting.pageInfoShowTime": return "在阅读页面显示时间。"
+    case "readSetting.pageInfoVerticalPosition": return "选择阅读信息在顶部或底部显示。"
+    case "readSetting.pageInfoHorizontalPosition": return "选择阅读信息的水平位置。"
+    case "readSetting.pageInfoTopInStatusBar": return "将顶部阅读信息放入状态栏区域。"
+    case "readSetting.pageInfoEdgePadding": return "调整阅读信息与屏幕边缘的间距。"
+    case "readSetting.pageInfoOpacityPercent": return "调整阅读信息的不透明度。"
+    case "readSetting.pageInfoFontSize": return "调整阅读信息的文字大小。"
+    default: return ""
     }
   }
   private func textBinding(_ key: String) -> Binding<String> { Binding(get: { settingsText(settingsValue(draft, key)) }, set: { settingsAssign(&draft, key, $0) }) }
+  private func assign(_ path: String, _ value: Any) { settingsAssign(&draft, path, value); changedPaths.insert(path) }
+  private func loadDraft() async {
+    guard let comicSource, let comicId else { draft = model.settings; loaded = true; return }
+    do {
+      let result = settingsMap(try await model.request("comicReadSettings", ["source": comicSource, "comicId": comicId]))
+      draft = ["readSetting": settingsMap(result["effective"])]; onComicUpdate?(result); loaded = true
+    } catch { message = error.localizedDescription }
+  }
+  private func resetComicSettings() {
+    guard let comicSource, let comicId else { return }
+    saving = true
+    Task {
+      do {
+        let result = settingsMap(try await model.request("comicReadSettings", ["source": comicSource, "comicId": comicId, "reset": true]))
+        draft = ["readSetting": settingsMap(result["effective"])]; changedPaths = []; onComicUpdate?(result); message = "已恢复跟随全局设置"
+      } catch { message = error.localizedDescription }
+      saving = false
+    }
+  }
   private func save() {
     saving = true
     var patch: [String: Any] = [:]
-    for field in sections.flatMap(\.fields) { if let value = settingsValue(draft, field.path) { settingsAssign(&patch, field.path, value) } }
+    for field in sections.flatMap(\.fields) where comicSource == nil || changedPaths.contains(field.path) { if let value = settingsValue(draft, field.path) { settingsAssign(&patch, field.path, value) } }
     Task {
-      do { _ = try await model.request("settings", ["patch": patch]); await model.refresh(); message = "已保存" }
+      do {
+        if let comicSource, let comicId {
+          let result = settingsMap(try await model.request("comicReadSettings", ["source": comicSource, "comicId": comicId, "patch": settingsMap(patch["readSetting"])]))
+          draft = ["readSetting": settingsMap(result["effective"])]; changedPaths = []; onComicUpdate?(result)
+        } else { _ = try await model.request("settings", ["patch": patch]); await model.refresh() }
+        message = "已保存"
+      }
       catch { message = error.localizedDescription }
       saving = false
     }
@@ -243,6 +327,7 @@ struct DCikeSyncSettings: View {
   @State private var busy = false
   @State private var message: String?
   @State private var confirmDownload = false
+  @State private var confirmClear = false
   private var kind: String { settingsText(draft["syncServiceType"], "none") }
 
   var body: some View {
@@ -270,16 +355,19 @@ struct DCikeSyncSettings: View {
         }.textInputAutocapitalization(.never).autocorrectionDisabled()
       }
       if kind != "none" {
-        Section("同步内容") {
-          Toggle("同步应用设置", isOn: toggle("syncSettings"))
-          Toggle("同步图源配置", isOn: toggle("syncPlugins"))
-          Toggle("自动同步", isOn: toggle("autoSync", fallback: true))
-          Toggle("显示同步通知", isOn: toggle("syncNotify", fallback: true))
-        }
         Section {
-          Button("立即同步") { synchronize("auto") }
+          Button("测试连接") { testConnection() }
+          Button("删除配置", role: .destructive) { confirmClear = true }
+        } footer: { Text("删除配置只清除当前服务的本地连接信息，不会删除云端数据。") }
+        Section("同步内容") {
+          syncToggle("同步应用设置", "同步外观、书架和阅读设置。", "syncSettings")
+          syncToggle("同步图源配置", "同步图源配置，可能包含图源登录信息。", "syncPlugins")
+          syncToggle("自动同步", "自动同步本地和云端数据。", "autoSync", fallback: true)
+          syncToggle("显示同步通知", "显示同步操作的结果通知。", "syncNotify", fallback: true)
+        }
+        Section("手动同步") {
           Button("上传本地数据") { synchronize("upload") }
-          Button("从云端恢复", role: .destructive) { confirmDownload = true }
+          Button("从云端恢复") { confirmDownload = true }
         } footer: { Text("服务器信息和密码只保存在你的应用中；上传图源配置可能包含该图源的登录信息。") }
       }
     }
@@ -288,12 +376,26 @@ struct DCikeSyncSettings: View {
     .toolbar { ToolbarItem(placement: .confirmationAction) { Button("保存") { save() } } }
     .task { draft = settingsMap(model.settings["syncSetting"]) }
     .confirmationDialog("从云端恢复数据？", isPresented: $confirmDownload, titleVisibility: .visible) { Button("恢复云端数据", role: .destructive) { synchronize("download") } } message: { Text("云端数据将合并或替换对应的本地记录，请先保留备份。") }
+    .confirmationDialog("删除当前服务的配置？", isPresented: $confirmClear, titleVisibility: .visible) { Button("删除配置", role: .destructive) { clearConfiguration() } } message: { Text("只删除本机保存的连接信息，不会删除云端数据。") }
     .alert("同步", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好", role: .cancel) {} } message: { Text(message ?? "") }
   }
   private func bind(_ key: String, fallback: String = "") -> Binding<String> { Binding(get: { settingsText(settingsValue(draft, key), fallback) }, set: { settingsAssign(&draft, key, $0) }) }
   private func toggle(_ key: String, fallback: Bool = false) -> Binding<Bool> { Binding(get: { settingsValue(draft, key) as? Bool ?? fallback }, set: { settingsAssign(&draft, key, $0) }) }
+  private func syncToggle(_ label: String, _ hint: String, _ key: String, fallback: Bool = false) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Toggle(label, isOn: toggle(key, fallback: fallback))
+      Text(hint).font(.footnote).foregroundStyle(.secondary)
+    }
+  }
   private func persist() async throws { _ = try await model.request("settings", ["patch": ["syncSetting": draft]]); await model.refresh() }
   private func save() { busy = true; Task { do { try await persist(); message = "已保存" } catch { message = error.localizedDescription }; busy = false } }
+  private func testConnection() { busy = true; Task { do { _ = try await model.request("testSyncConnection", ["syncSetting": draft]); message = "连接成功" } catch { message = error.localizedDescription }; busy = false } }
+  private func clearConfiguration() {
+    if kind == "webdav" { draft["webdavSetting"] = ["host": "", "username": "", "password": ""] }
+    else if kind == "s3" { draft["s3Setting"] = ["endpoint": "", "bucket": "", "region": "", "accessKey": "", "secretKey": "", "port": 0, "useSSL": true, "pathStyle": false] }
+    busy = true
+    Task { do { try await persist(); draft = settingsMap(model.settings["syncSetting"]); message = "配置已删除" } catch { message = error.localizedDescription }; busy = false }
+  }
   private func synchronize(_ direction: String) { busy = true; Task { do { try await persist(); _ = try await model.request("sync", ["direction": direction]); message = "同步完成" } catch { message = error.localizedDescription }; busy = false } }
 }
 
