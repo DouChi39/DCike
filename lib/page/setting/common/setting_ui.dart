@@ -116,8 +116,7 @@ class _GlassSwitchListTileState extends State<GlassSwitchListTile> {
   Widget build(BuildContext context) {
     if (!_nativeIOS) {
       return SwitchListTile(
-        leading: widget.leading,
-        secondary: widget.secondary,
+        secondary: widget.leading ?? widget.secondary,
         title: widget.title,
         subtitle: widget.subtitle,
         value: widget.value,
