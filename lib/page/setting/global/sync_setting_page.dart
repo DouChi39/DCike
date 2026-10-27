@@ -166,7 +166,7 @@ class _SyncSettingPageState extends State<SyncSettingPage> {
   }
 
   Widget _autoSync(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.cloud_sync_outlined),
       title: Text(t.settings.autoSync),
       subtitle: Text(t.settings.autoSyncSubtitle),
@@ -182,7 +182,7 @@ class _SyncSettingPageState extends State<SyncSettingPage> {
   }
 
   Widget _syncNotify(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.notifications_active_outlined),
       title: Text(t.settings.syncNotify),
       subtitle: Text(t.settings.syncNotifySubtitle),
@@ -197,7 +197,7 @@ class _SyncSettingPageState extends State<SyncSettingPage> {
   }
 
   Widget _syncSettings(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.tune_outlined),
       title: Text(t.settings.syncSettings),
       subtitle: Text(t.settings.syncSettingsSubtitle),
@@ -212,7 +212,7 @@ class _SyncSettingPageState extends State<SyncSettingPage> {
   }
 
   Widget _syncPlugins(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.extension_outlined),
       title: Text(t.settings.syncPlugins),
       subtitle: Text(t.settings.syncPluginsSubtitle),

@@ -41,7 +41,7 @@ class ContentNetworkSettingPage extends StatelessWidget {
             type: state.proxySetting.type,
             currentProxy: state.proxySetting.address,
           ),
-          SwitchListTile(
+          GlassSwitchListTile(
             secondary: const Icon(Icons.download_outlined),
             title: Text(t.settings.retryDownloadUntilSuccess),
             subtitle: Text(t.settings.retryDownloadUntilSuccessSubtitle),
@@ -89,7 +89,7 @@ class ContentNetworkSettingPage extends StatelessWidget {
   }
 
   // Widget _updateAccelerate(GlobalSettingState state, GlobalSettingCubit cubit) {
-  //   return SwitchListTile(
+  //   return GlassSwitchListTile(
   //     secondary: const Icon(Icons.rocket_launch_outlined),
   //     title: Text(t.settings.updateAccelerate),
   //     subtitle: Text(t.settings.updateAccelerateSubtitle),

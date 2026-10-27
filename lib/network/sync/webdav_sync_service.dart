@@ -1,4 +1,5 @@
 import 'package:zephyr/config/global/global_setting.dart';
+import 'package:zephyr/network/sync/webdav_errors.dart';
 import 'package:zephyr/src/rust/api/webdav.dart' as rust_webdav;
 
 import 'package:zephyr/network/sync/comic_sync_core.dart';
@@ -20,72 +21,84 @@ class WebDavSyncService implements ComicSyncRemoteAdapter {
 
   @override
   Future<void> testConnection() {
-    return rust_webdav.webdavTestConnection(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
+    return runWebDavOperation(
+      () => rust_webdav.webdavTestConnection(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+      ),
     );
   }
 
   @override
   Future<void> ensureRemoteReady() {
-    return rust_webdav.webdavEnsureRemoteReady(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
+    return runWebDavOperation(
+      () => rust_webdav.webdavEnsureRemoteReady(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+      ),
     );
   }
 
   @override
   Future<String> downloadRemoteMd5() {
-    return rust_webdav.webdavDownloadText(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
-      remotePath: _remoteMd5Path,
+    return runWebDavOperation(
+      () => rust_webdav.webdavDownloadText(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+        remotePath: _remoteMd5Path,
+      ),
     );
   }
 
   @override
   Future<void> uploadRemoteMd5(String value) {
-    return rust_webdav.webdavUploadText(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
-      remotePath: _remoteMd5Path,
-      value: value,
+    return runWebDavOperation(
+      () => rust_webdav.webdavUploadText(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+        remotePath: _remoteMd5Path,
+        value: value,
+      ),
     );
   }
 
   @override
   Future<List<String>> listRemoteDataFiles() {
-    return rust_webdav.webdavListRemoteDataFiles(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+    return runWebDavOperation(
+      () => rust_webdav.webdavListRemoteDataFiles(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+      ),
     );
   }
 
   @override
   Future<List<int>> downloadRemoteFile(String remotePath) {
-    return rust_webdav.webdavDownloadFile(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
-      remotePath: remotePath,
+    return runWebDavOperation(
+      () => rust_webdav.webdavDownloadFile(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+        remotePath: remotePath,
+      ),
     );
   }
 
@@ -95,29 +108,33 @@ class WebDavSyncService implements ComicSyncRemoteAdapter {
     List<int> data, {
     String contentType = 'application/octet-stream',
   }) {
-    return rust_webdav.webdavUploadBytes(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
-      remotePath: remotePath,
-      data: data,
-      contentType: contentType,
+    return runWebDavOperation(
+      () => rust_webdav.webdavUploadBytes(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+        remotePath: remotePath,
+        data: data,
+        contentType: contentType,
+      ),
     );
   }
 
   @override
   Future<void> deleteRemoteFiles(List<String> remotePaths) {
-    return rust_webdav.webdavDeleteRemoteFiles(
-      host: _settings.syncSetting.webdavSetting.host,
-      username: _settings.syncSetting.webdavSetting.username,
-      password: _settings.syncSetting.webdavSetting.password,
-      remotePaths: remotePaths,
-      syncRootName: ComicSyncCore.syncRemoteRootName,
-      legacyDataRootName: ComicSyncCore.legacyDataRootName,
-      legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+    return runWebDavOperation(
+      () => rust_webdav.webdavDeleteRemoteFiles(
+        host: _settings.syncSetting.webdavSetting.host,
+        username: _settings.syncSetting.webdavSetting.username,
+        password: _settings.syncSetting.webdavSetting.password,
+        remotePaths: remotePaths,
+        syncRootName: ComicSyncCore.syncRemoteRootName,
+        legacyDataRootName: ComicSyncCore.legacyDataRootName,
+        legacySettingsRootName: ComicSyncCore.legacySettingsRootName,
+      ),
     );
   }
 

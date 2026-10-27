@@ -117,7 +117,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.notifications_active_outlined),
       title: Text(t.settings.autoFollowOnCollect),
       subtitle: Text(t.settings.autoFollowOnCollectSubtitle),
@@ -136,7 +136,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.cloud_outlined),
       title: Text(t.settings.autoCloudCollectOnCollect),
       subtitle: Text(t.settings.autoCloudCollectOnCollectSubtitle),
@@ -152,7 +152,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
   }
 
   Widget _leftHandMode(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.back_hand_outlined),
       title: Text(t.settings.leftHandMode),
       subtitle: Text(t.settings.leftHandModeSubtitle),
@@ -171,7 +171,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.touch_app_outlined),
       title: Text(t.settings.clickCoverToStartReading),
       subtitle: Text(t.settings.clickCoverToStartReadingSubtitle),
@@ -187,7 +187,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
   }
 
   Widget _androidKeepAlive(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.battery_charging_full_outlined),
       title: Text(t.settings.androidKeepAlive),
       subtitle: Text(t.settings.androidKeepAliveSubtitle),
@@ -215,7 +215,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
   }
 
   Widget _backPressExit(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.exit_to_app_outlined),
       title: Text(t.settings.backPressExit),
       subtitle: Text(t.settings.backPressExitSubtitle),
@@ -262,7 +262,7 @@ class _AppBehaviorSettingPageState extends State<AppBehaviorSettingPage> {
 
     return Column(
       children: [
-        SwitchListTile(
+        GlassSwitchListTile(
           secondary: const Icon(Icons.lock_outline),
           title: Text(t.settings.appLock),
           subtitle: Text(t.settings.appLockSubtitle),

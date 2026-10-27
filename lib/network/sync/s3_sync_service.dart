@@ -5,13 +5,10 @@ import 'package:minio/minio.dart';
 import 'package:zephyr/config/global/global_setting.dart';
 
 import 'package:zephyr/network/sync/comic_sync_core.dart';
+import 'package:zephyr/network/sync/s3_connection.dart';
 
 class S3SyncService implements ComicSyncRemoteAdapter {
-  S3SyncService(this._settings) : _minio = _createMinio(_settings) {
-    if (!isConfigured(_settings)) {
-      throw Exception('S3 配置不完整');
-    }
-  }
+  S3SyncService(this._settings) : _minio = _createMinio(_settings);
 
   final GlobalSettingState _settings;
   final Minio _minio;
@@ -24,22 +21,20 @@ class S3SyncService implements ComicSyncRemoteAdapter {
   }
 
   @override
-  Future<void> testConnection() async {
+  Future<void> testConnection() => runS3Operation(() async {
     final exists = await _minio.bucketExists(
       _settings.syncSetting.s3Setting.bucket,
     );
     if (!exists) {
-      throw Exception(
-        'S3 Bucket 不存在或没有访问权限: ${_settings.syncSetting.s3Setting.bucket}',
-      );
+      throw const S3ConnectionException('S3 Bucket 不存在或没有访问权限');
     }
-  }
+  });
 
   @override
   Future<void> ensureRemoteReady() async {}
 
   @override
-  Future<String> downloadRemoteMd5() async {
+  Future<String> downloadRemoteMd5() => runS3Operation(() async {
     for (final candidate in _md5ObjectKeyCandidates) {
       try {
         final stream = await _minio.getObject(
@@ -58,14 +53,14 @@ class S3SyncService implements ComicSyncRemoteAdapter {
             code == 'NoSuchObject') {
           continue;
         }
-        throw Exception('S3 md5 下载失败: ${e.message}');
+        rethrow;
       }
     }
     return '';
-  }
+  });
 
   @override
-  Future<void> uploadRemoteMd5(String value) async {
+  Future<void> uploadRemoteMd5(String value) => runS3Operation(() async {
     final bytes = utf8.encode(value);
     final data = Uint8List.fromList(bytes);
     await _minio.putObject(
@@ -74,10 +69,10 @@ class S3SyncService implements ComicSyncRemoteAdapter {
       Stream<Uint8List>.value(data),
       size: bytes.length,
     );
-  }
+  });
 
   @override
-  Future<List<String>> listRemoteDataFiles() async {
+  Future<List<String>> listRemoteDataFiles() => runS3Operation(() async {
     final files = <String>[];
     final seen = <String>{};
     for (final prefix in _listPrefixes) {
@@ -100,24 +95,25 @@ class S3SyncService implements ComicSyncRemoteAdapter {
       }
     }
     return files;
-  }
+  });
 
   @override
-  Future<List<int>> downloadRemoteFile(String remotePath) async {
-    final objectKey = _toManagedObjectKey(remotePath);
-    final stream = await _minio.getObject(
-      _settings.syncSetting.s3Setting.bucket,
-      objectKey,
-    );
-    return _collectStream(stream);
-  }
+  Future<List<int>> downloadRemoteFile(String remotePath) =>
+      runS3Operation(() async {
+        final objectKey = _toManagedObjectKey(remotePath);
+        final stream = await _minio.getObject(
+          _settings.syncSetting.s3Setting.bucket,
+          objectKey,
+        );
+        return _collectStream(stream);
+      });
 
   @override
   Future<void> uploadRemoteFile(
     String remotePath,
     List<int> data, {
     String contentType = 'application/octet-stream',
-  }) async {
+  }) => runS3Operation(() async {
     final remoteObject = _toManagedObjectKey(remotePath);
 
     await _minio.putObject(
@@ -125,39 +121,44 @@ class S3SyncService implements ComicSyncRemoteAdapter {
       remoteObject,
       Stream<Uint8List>.value(Uint8List.fromList(data)),
       size: data.length,
+      metadata: {'Content-Type': contentType},
     );
-  }
+  });
 
   @override
-  Future<void> deleteRemoteFiles(List<String> remotePaths) async {
-    if (remotePaths.isEmpty) {
-      return;
-    }
-
-    final normalizedPaths = remotePaths
-        .map(_toManagedObjectKey)
-        .where((path) => path.isNotEmpty)
-        .toSet()
-        .toList();
-
-    if (normalizedPaths.isEmpty) {
-      return;
-    }
-
-    for (final path in normalizedPaths) {
-      try {
-        await _minio.removeObject(_settings.syncSetting.s3Setting.bucket, path);
-      } on MinioS3Error catch (e) {
-        final code = e.error?.code;
-        if (code == 'NoSuchKey' ||
-            code == 'NotFound' ||
-            code == 'NoSuchObject') {
-          continue;
+  Future<void> deleteRemoteFiles(List<String> remotePaths) =>
+      runS3Operation(() async {
+        if (remotePaths.isEmpty) {
+          return;
         }
-        throw Exception('S3 文件删除失败: ${e.message}');
-      }
-    }
-  }
+
+        final normalizedPaths = remotePaths
+            .map(_toManagedObjectKey)
+            .where((path) => path.isNotEmpty)
+            .toSet()
+            .toList();
+
+        if (normalizedPaths.isEmpty) {
+          return;
+        }
+
+        for (final path in normalizedPaths) {
+          try {
+            await _minio.removeObject(
+              _settings.syncSetting.s3Setting.bucket,
+              path,
+            );
+          } on MinioS3Error catch (e) {
+            final code = e.error?.code;
+            if (code == 'NoSuchKey' ||
+                code == 'NotFound' ||
+                code == 'NoSuchObject') {
+              continue;
+            }
+            rethrow;
+          }
+        }
+      });
 
   String get _syncRootPrefix => '${ComicSyncCore.syncRemoteRootName}/';
 
@@ -204,48 +205,14 @@ class S3SyncService implements ComicSyncRemoteAdapter {
 }
 
 Minio _createMinio(GlobalSettingState settings) {
-  final resolved = _resolveEndpoint(
-    settings.syncSetting.s3Setting.endpoint,
-    settings.syncSetting.s3Setting.port,
-  );
-  return Minio(
-    endPoint: resolved.host,
-    port: resolved.port,
+  return createS3Client(
+    endpoint: settings.syncSetting.s3Setting.endpoint,
+    bucket: settings.syncSetting.s3Setting.bucket,
+    port: settings.syncSetting.s3Setting.port,
     accessKey: settings.syncSetting.s3Setting.accessKey,
     secretKey: settings.syncSetting.s3Setting.secretKey,
     useSSL: settings.syncSetting.s3Setting.useSSL,
-    region: settings.syncSetting.s3Setting.region.isEmpty
-        ? null
-        : settings.syncSetting.s3Setting.region,
+    region: settings.syncSetting.s3Setting.region,
     pathStyle: settings.syncSetting.s3Setting.pathStyle,
   );
-}
-
-class _S3Endpoint {
-  const _S3Endpoint({required this.host, required this.port});
-
-  final String host;
-  final int? port;
-}
-
-_S3Endpoint _resolveEndpoint(String endpoint, int configuredPort) {
-  final trimmed = endpoint.trim();
-  if (trimmed.isEmpty) {
-    throw Exception('S3 Endpoint 不能为空');
-  }
-
-  final raw = trimmed.startsWith('http://') || trimmed.startsWith('https://')
-      ? trimmed
-      : 'https://$trimmed';
-  final uri = Uri.tryParse(raw);
-
-  if (uri == null || uri.host.isEmpty) {
-    throw Exception('S3 Endpoint 格式错误: $endpoint');
-  }
-
-  final port = configuredPort > 0
-      ? configuredPort
-      : (uri.hasPort ? uri.port : null);
-
-  return _S3Endpoint(host: uri.host, port: port);
 }

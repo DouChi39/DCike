@@ -1,3 +1,7 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 const EdgeInsets kSettingPagePadding = EdgeInsets.fromLTRB(16, 12, 16, 24);
@@ -7,6 +11,141 @@ const WidgetStateProperty<Icon> kSettingSwitchThumbIcon =
       WidgetState.selected: Icon(Icons.check),
       WidgetState.any: Icon(Icons.close),
     });
+
+/// A settings switch backed by UIKit on iOS.
+///
+/// iOS 26 renders the switch surface through the native
+/// `UIGlassEffect`; older iOS releases use Apple's native material blur and
+/// other platforms keep the regular Material switch. Keeping the row in
+/// Flutter means all existing setting callbacks and accessibility labels are
+/// preserved.
+class GlassSwitchListTile extends StatefulWidget {
+  const GlassSwitchListTile({
+    super.key,
+    this.leading,
+    this.secondary,
+    required this.title,
+    this.subtitle,
+    required this.value,
+    required this.onChanged,
+    this.thumbIcon,
+    this.contentPadding,
+    this.dense,
+  });
+
+  final Widget? leading;
+  final Widget? secondary;
+  final Widget title;
+  final Widget? subtitle;
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final WidgetStateProperty<Icon>? thumbIcon;
+  final EdgeInsetsGeometry? contentPadding;
+  final bool? dense;
+
+  @override
+  State<GlassSwitchListTile> createState() => _GlassSwitchListTileState();
+}
+
+class _GlassSwitchListTileState extends State<GlassSwitchListTile> {
+  static int _nextViewId = 0;
+  late final int _viewId = _nextViewId++;
+  MethodChannel? _channel;
+
+  bool get _nativeIOS => defaultTargetPlatform == TargetPlatform.iOS;
+
+  Map<String, Object> get _configuration => {
+        'value': widget.value,
+        'enabled': widget.onChanged != null,
+        'darkMode': Theme.of(context).brightness == Brightness.dark,
+      };
+
+  @override
+  void didUpdateWidget(covariant GlassSwitchListTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _sendConfiguration();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sendConfiguration();
+  }
+
+  void _sendConfiguration() {
+    final channel = _channel;
+    if (channel != null) {
+      unawaited(channel.invokeMethod<void>('update', _configuration));
+    }
+  }
+
+  void _onPlatformViewCreated(int id) {
+    final channel = MethodChannel('dcike/native_glass_switch/$id');
+    _channel = channel;
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'valueChanged' && mounted && widget.onChanged != null) {
+        final value = call.arguments;
+        if (value is bool) widget.onChanged!(value);
+      }
+    });
+    _sendConfiguration();
+  }
+
+  Widget _switch(BuildContext context) {
+    if (!_nativeIOS) {
+      return Switch(
+        value: widget.value,
+        onChanged: widget.onChanged,
+        thumbIcon: widget.thumbIcon ?? kSettingSwitchThumbIcon,
+      );
+    }
+    return SizedBox(
+      width: 58,
+      height: 34,
+      child: UiKitView(
+        key: ValueKey('dcike-glass-switch-$_viewId'),
+        viewType: 'dcike/native_glass_switch',
+        creationParams: _configuration,
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: _onPlatformViewCreated,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_nativeIOS) {
+      return SwitchListTile(
+        leading: widget.leading,
+        secondary: widget.secondary,
+        title: widget.title,
+        subtitle: widget.subtitle,
+        value: widget.value,
+        onChanged: widget.onChanged,
+        thumbIcon: widget.thumbIcon ?? kSettingSwitchThumbIcon,
+        contentPadding: widget.contentPadding,
+        dense: widget.dense,
+      );
+    }
+    return ListTile(
+      leading: widget.leading ?? widget.secondary,
+      title: widget.title,
+      subtitle: widget.subtitle,
+      trailing: _switch(context),
+      onTap: widget.onChanged == null
+          ? null
+          : () => widget.onChanged!(!widget.value),
+      contentPadding: widget.contentPadding,
+      dense: widget.dense,
+    );
+  }
+
+  @override
+  void dispose() {
+    _channel?.setMethodCallHandler(null);
+    super.dispose();
+  }
+}
 
 /// 设置页统一外壳：AppBar + 居中限宽内容区。
 class SettingPageShell extends StatelessWidget {

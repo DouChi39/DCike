@@ -147,6 +147,7 @@ flutter:
     - path: asset/image/app_icon.ico
       platforms: [windows, linux, macos]
     - path: asset/image/app-icon.png
+    - asset/image/dcike-about-avatar.png
     - asset/image/error_image/404.png
     - asset/image/bika_image/cat_forum.jpg
     - asset/image/bika_image/cat_latest.jpg
@@ -170,8 +171,10 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
+  image_path_ios: "asset/image/app-icon.png"
 
 flutter_native_splash:
   color: "#ffffff"
   image: "macos/Runner/Assets.xcassets/AppIcon.appiconset/app_icon_1024.png"
+  image_ios: "asset/image/dcike-splash.png"
   fullscreen: true

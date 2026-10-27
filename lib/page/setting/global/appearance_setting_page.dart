@@ -106,7 +106,7 @@ class AppearanceSettingPage extends StatelessWidget {
   }
 
   Widget _dynamicColor(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.color_lens_outlined),
       title: Text(t.settings.dynamicColor),
       subtitle: Text(t.settings.dynamicColorSubtitle),
@@ -133,7 +133,7 @@ class AppearanceSettingPage extends StatelessWidget {
   }
 
   Widget _isAMOLED(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.contrast_outlined),
       title: Text(t.settings.amoled),
       subtitle: Text(t.settings.amoledSubtitle),
@@ -149,7 +149,7 @@ class AppearanceSettingPage extends StatelessWidget {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.smartphone_outlined),
       title: Text(t.settings.notchAdaptation),
       subtitle: Text(t.settings.notchAdaptationSubtitle),
@@ -164,7 +164,7 @@ class AppearanceSettingPage extends StatelessWidget {
   }
 
   Widget _detailLayout(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.view_list_outlined),
       title: Text(t.settings.detailLayout),
       subtitle: Text(t.settings.detailLayoutSubtitle),
@@ -180,7 +180,7 @@ class AppearanceSettingPage extends StatelessWidget {
   }
 
   Widget _reverseChapters(GlobalSettingState state, GlobalSettingCubit cubit) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.swap_vert_outlined),
       title: Text(t.settings.reverseChapters),
       subtitle: Text(t.settings.reverseChaptersSubtitle),

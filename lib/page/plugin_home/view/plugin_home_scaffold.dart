@@ -1,4 +1,8 @@
+import 'dart:ui' as ui;
+
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:zephyr/config/router/router.gr.dart';
@@ -161,13 +165,11 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
                 );
           return Scaffold(
             appBar: AppBar(
-              titleSpacing: hasTabBar ? 0 : null,
+              titleSpacing: hasTabBar ? 8 : null,
               title: hasTabBar
-                  ? TabBar(
-                      controller: _tabController,
-                      isScrollable: true,
-                      tabAlignment: TabAlignment.start,
-                      tabs: [for (final tab in tabs) Tab(text: tab.title)],
+                  ? _GlassHomeCategoryBar(
+                      controller: _tabController!,
+                      tabs: tabs,
                     )
                   : InkWell(
                       onTap: () => _openSelector(context, state),
@@ -190,7 +192,7 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
                   ? const []
                   : _buildActions(context, state, activeTab, activeIndex),
             ),
-            body: _buildBody(context, state),
+            body: _HomeScrollFade(child: _buildBody(context, state)),
             floatingActionButton: Padding(
               padding: EdgeInsets.only(
                 bottom: GlassNavigationInsets.floatingBottomOf(context),
@@ -227,9 +229,9 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
               if (sceneState.scene?.filter == null) {
                 return const SizedBox.shrink();
               }
-              return IconButton(
+              return _GlassCircleActionButton(
                 tooltip: t.comicList.filter,
-                icon: const Icon(Icons.filter_alt),
+                icon: Icons.filter_alt,
                 onPressed: () =>
                     openPluginHomeFilterDialog(context, sceneCubit),
               );
@@ -243,9 +245,9 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
     }
     return [
       for (final action in activeTab.headerActions)
-        IconButton(
+        _GlassCircleActionButton(
           tooltip: action['title']?.toString() ?? t.oldHome.function,
-          icon: Icon(_iconForAction(action)),
+          icon: _iconForAction(action),
           onPressed: () => DiscoverRouter.route(
             context,
             action: DiscoverRouter.attachSource(action, state.pluginId),
@@ -394,5 +396,302 @@ class _PluginHomeScaffoldState extends State<PluginHomeScaffold>
       return;
     }
     await _cubit.retry();
+  }
+}
+
+/// A compact, scrollable liquid-glass category strip used by plugin home pages.
+/// The selected item is a blue capsule while the unselected items remain text
+/// only, matching the iOS reference style and following the current theme.
+class _GlassHomeCategoryBar extends StatelessWidget {
+  const _GlassHomeCategoryBar({required this.controller, required this.tabs});
+
+  final TabController controller;
+  final List<PluginHomeTab> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return _NativeGlassHomeCategoryBar(controller: controller, tabs: tabs);
+    }
+    return _FlutterGlassHomeCategoryBar(controller: controller, tabs: tabs);
+  }
+}
+
+class _FlutterGlassHomeCategoryBar extends StatelessWidget {
+  const _FlutterGlassHomeCategoryBar({required this.controller, required this.tabs});
+
+  final TabController controller;
+  final List<PluginHomeTab> tabs;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(22),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: isDark ? .42 : .62),
+            border: Border.all(
+              color: scheme.outline.withValues(alpha: isDark ? .28 : .18),
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < tabs.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _GlassCategoryChip(
+                        label: tabs[i].title,
+                        selected: controller.index == i,
+                        onTap: () => controller.animateTo(
+                          i,
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// iOS category strip backed by UIKit's UIGlassEffect (iOS 26+) with a native
+/// UIBlurEffect fallback on older iOS versions. Flutter only owns the labels
+/// and tab controller state through the method channel.
+class _NativeGlassHomeCategoryBar extends StatefulWidget {
+  const _NativeGlassHomeCategoryBar({required this.controller, required this.tabs});
+
+  final TabController controller;
+  final List<PluginHomeTab> tabs;
+
+  @override
+  State<_NativeGlassHomeCategoryBar> createState() => _NativeGlassHomeCategoryBarState();
+}
+
+class _NativeGlassHomeCategoryBarState extends State<_NativeGlassHomeCategoryBar> {
+  MethodChannel? _channel;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  void _onControllerChanged() => _sendConfiguration();
+
+  Map<String, Object> get _configuration => {
+        'labels': [for (final tab in widget.tabs) tab.title],
+        'selectedIndex': widget.controller.index,
+        'darkMode': Theme.of(context).brightness == Brightness.dark,
+        'isRtl': Directionality.of(context) == TextDirection.rtl,
+      };
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sendConfiguration();
+  }
+
+  @override
+  void didUpdateWidget(covariant _NativeGlassHomeCategoryBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onControllerChanged);
+      widget.controller.addListener(_onControllerChanged);
+    }
+    _sendConfiguration();
+  }
+
+  void _sendConfiguration() {
+    final channel = _channel;
+    if (channel != null) {
+      channel.invokeMethod<void>('update', _configuration);
+    }
+  }
+
+  void _onPlatformViewCreated(int id) {
+    final channel = MethodChannel('dcike/native_home_categories/$id');
+    _channel = channel;
+    channel.setMethodCallHandler((call) async {
+      if (call.method == 'selectCategory' && mounted) {
+        final index = call.arguments;
+        if (index is int && index >= 0 && index < widget.tabs.length) {
+          widget.controller.animateTo(
+            index,
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      }
+    });
+    _sendConfiguration();
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    _channel?.setMethodCallHandler(null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.controller,
+      builder: (context, _) => UiKitView(
+        viewType: 'dcike/native_home_categories',
+        layoutDirection: Directionality.of(context),
+        creationParams: _configuration,
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: _onPlatformViewCreated,
+      ),
+    );
+  }
+}
+
+class _GlassCategoryChip extends StatelessWidget {
+  const _GlassCategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primary.withValues(alpha: .92)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Adds a subtle edge fade so vertical page movement has the soft transition
+/// seen in the reference video. The overlay is pointer-transparent.
+class _HomeScrollFade extends StatelessWidget {
+  const _HomeScrollFade({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        child,
+        IgnorePointer(
+          child: Column(
+            children: [
+              SizedBox(
+                height: 18,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [scheme.surface, scheme.surface.withValues(alpha: 0)],
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                height: 22,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [scheme.surface.withValues(alpha: 0), scheme.surface],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GlassCircleActionButton extends StatelessWidget {
+  const _GlassCircleActionButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+      child: ClipOval(
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+          child: Material(
+            color: scheme.surface.withValues(alpha: isDark ? .48 : .68),
+            shape: const CircleBorder(),
+            child: IconButton(
+              tooltip: tooltip,
+              onPressed: onPressed,
+              icon: Icon(icon),
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

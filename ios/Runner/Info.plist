@@ -38,6 +38,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>DCike requires camera access to scan QR codes or take photos.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>用于连接您设置的局域网 WebDAV 或 S3 服务器，同步收藏、阅读记录和设置。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>我们需要保存图片到您的相册</string>
 	<key>NSPhotoLibraryUsageDescription</key>

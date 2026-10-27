@@ -57,7 +57,7 @@ class _EInkSettingPageState extends State<EInkSettingPage> {
               );
             },
           ),
-          SwitchListTile(
+          GlassSwitchListTile(
             secondary: const Icon(Icons.power_settings_new_outlined),
             title: Text(t.settings.einkEnabled),
             subtitle: Text(t.settings.einkEnabledSubtitle),
@@ -86,7 +86,7 @@ class _EInkSettingPageState extends State<EInkSettingPage> {
               t.settings.einkSectionAnimation,
               icon: Icons.animation_outlined,
             ),
-            SwitchListTile(
+            GlassSwitchListTile(
               secondary: const Icon(Icons.arrow_back_outlined),
               title: Text(t.settings.einkNoRouteTransition),
               subtitle: Text(t.settings.einkNoRouteTransitionSubtitle),
@@ -96,7 +96,7 @@ class _EInkSettingPageState extends State<EInkSettingPage> {
                 (current) => current.copyWith(noRouteTransition: value),
               ),
             ),
-            SwitchListTile(
+            GlassSwitchListTile(
               secondary: const Icon(Icons.vertical_align_bottom_outlined),
               title: Text(t.settings.einkNoScrollBounce),
               subtitle: Text(t.settings.einkNoScrollBounceSubtitle),
@@ -111,7 +111,7 @@ class _EInkSettingPageState extends State<EInkSettingPage> {
               t.settings.einkSectionLoading,
               icon: Icons.download_outlined,
             ),
-            SwitchListTile(
+            GlassSwitchListTile(
               secondary: const Icon(Icons.hourglass_empty_outlined),
               title: Text(t.settings.einkNoSpinner),
               subtitle: Text(t.settings.einkNoSpinnerSubtitle),
@@ -148,7 +148,7 @@ class _EInkSettingPageState extends State<EInkSettingPage> {
                 (current) => current.copyWith(autoRefreshEveryNTurns: value),
               ),
             ),
-            SwitchListTile(
+            GlassSwitchListTile(
               secondary: const Icon(Icons.control_camera_outlined),
               title: Text(t.settings.einkShowRefreshButton),
               subtitle: Text(t.settings.einkShowRefreshButtonSubtitle),

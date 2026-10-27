@@ -16,6 +16,7 @@ import 'package:zephyr/config/router/router.gr.dart';
 import 'package:zephyr/i18n/strings.g.dart';
 
 import 'package:zephyr/widgets/dialog.dart';
+import 'package:zephyr/widgets/glass/ios_glass_surface.dart';
 import 'package:zephyr/widgets/toast.dart';
 
 class ComicOperationWidget extends StatefulWidget {
@@ -47,6 +48,7 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
   bool isCloudCollected = false;
   bool _localFavoriteBusy = false;
   bool _cloudFavoriteBusy = false;
+  bool _followBusy = false;
 
   @override
   void initState() {
@@ -88,6 +90,9 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final isFollowing = context.select<ComicFollowCubit, bool>(
+      (cubit) => cubit.isFollowing(widget.from, comicInfoView.id),
+    );
     final localCollectItem = _OperationItemData(
       icon: isCollected ? Icons.star : Icons.star_border,
       text: isCollected ? t.comicInfo.collected : t.comicInfo.collect,
@@ -110,54 +115,77 @@ class _ComicOperationWidgetState extends State<ComicOperationWidget> {
           ? null
           : _toggleCloudFavorite,
     );
-    final actions = [
-      _OperationItemData(
-        icon: isLiked ? Icons.favorite : Icons.favorite_border,
-        text: t.comicInfo.likes(count: normalInfo.totalLikes),
-        highlighted: isLiked,
-        accentColor: Colors.red,
-        enabled: normalInfo.allowLike,
-        onTap: _toggleCloudLike,
-      ),
-      _OperationItemData(
-        icon: Icons.mode_comment_outlined,
-        text: t.comicInfo.comments(count: normalInfo.totalComments),
-        enabled: normalInfo.allowComments,
-        onTap: _openComments,
-      ),
-      localCollectItem,
-      cloudCollectItem,
-    ];
-
-    return SizedBox(
-      width: double.infinity,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isDesktop = constraints.maxWidth >= 900;
-          final itemWidth = switch (constraints.maxWidth) {
-            < 420 => (constraints.maxWidth - 10) / 2,
-            < 900 => (constraints.maxWidth - 30) / 4,
-            _ => 136.0,
-          };
-
-          return Center(
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.center,
-              children: actions
-                  .map(
-                    (item) => SizedBox(
-                      width: itemWidth,
-                      child: _OperationCard(item: item, compact: isDesktop),
-                    ),
-                  )
-                  .toList(),
-            ),
-          );
-        },
-      ),
+    final followItem = _OperationItemData(
+      icon: isFollowing ? Icons.notifications_active : Icons.notifications_none,
+      text: isFollowing ? t.comicInfo.unfollow : t.comicInfo.follow,
+      highlighted: isFollowing,
+      accentColor: context.theme.colorScheme.primary,
+      enabled: !_followBusy,
+      onTap: _followBusy ? null : () => _toggleFollow(isFollowing),
     );
+    final commentItem = _OperationItemData(
+      icon: Icons.mode_comment_outlined,
+      text: t.comicInfo.comments(count: normalInfo.totalComments),
+      enabled: normalInfo.allowComments,
+      onTap: _openComments,
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 560;
+        final lowerItems = [followItem, cloudCollectItem, commentItem];
+        return IosGlassSurface(
+          cornerRadius: 24,
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _OperationCard(item: localCollectItem, fullWidth: true),
+                const SizedBox(height: 8),
+                Flex(
+                  direction: compact ? Axis.vertical : Axis.horizontal,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < lowerItems.length; i++) ...[
+                      if (i > 0)
+                        SizedBox(
+                          width: compact ? 0 : 8,
+                          height: compact ? 8 : 0,
+                        ),
+                      if (compact)
+                        _OperationCard(item: lowerItems[i])
+                      else
+                        Expanded(child: _OperationCard(item: lowerItems[i])),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _toggleFollow(bool isFollowing) async {
+    if (_followBusy) return;
+    setState(() => _followBusy = true);
+    try {
+      final followCubit = context.read<ComicFollowCubit>();
+      if (isFollowing) {
+        await followCubit.removeFollow(widget.from, comicInfoView.id);
+      } else {
+        await followCubit.addOrUpdateFollow(
+          source: widget.from,
+          comicId: comicInfoView.id,
+          info: normalInfo,
+          lastChapterCount: normalInfo.eps.length,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _followBusy = false);
+    }
   }
 
   void _openComments() {
@@ -410,17 +438,20 @@ class _OperationItemData {
 }
 
 class _OperationCard extends StatelessWidget {
-  const _OperationCard({required this.item, this.compact = false});
+  const _OperationCard({required this.item, this.compact = false, this.fullWidth = false});
 
   final _OperationItemData item;
   final bool compact;
+  final bool fullWidth;
 
   @override
   Widget build(BuildContext context) {
     final accent = item.accentColor ?? context.theme.colorScheme.primary;
     final background = item.highlighted
-        ? accent.withValues(alpha: 0.14)
-        : context.theme.colorScheme.surfaceContainerLowest;
+        ? accent.withValues(alpha: 0.18)
+        : context.theme.colorScheme.surfaceContainerLowest.withValues(
+            alpha: 0.34,
+          );
     final foreground = !item.enabled
         ? context.theme.colorScheme.onSurface.withValues(alpha: 0.38)
         : item.highlighted
@@ -435,11 +466,14 @@ class _OperationCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             color: background,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(fullWidth ? 18 : 15),
+            border: Border.all(
+              color: accent.withValues(alpha: item.highlighted ? 0.35 : 0.16),
+            ),
           ),
           padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 10,
-            vertical: compact ? 10 : 11,
+            horizontal: compact ? 8 : 12,
+            vertical: fullWidth ? 14 : (compact ? 10 : 12),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

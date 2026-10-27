@@ -2979,7 +2979,7 @@ class Translations$about$zh_CN {
 	String get projectAddressDesc => '喜欢这个项目吗？点个star支持一下吧！';
 
 	/// zh-CN: '前往 GitHub 仓库 (deretame/Breeze) ⭐'
-	String get projectLink => '前往 GitHub 仓库 (deretame/Breeze) ⭐';
+	String get projectLink => '前往 GitHub 仓库 (DouChi39/DCike) ⭐';
 
 	/// zh-CN: '联系方式'
 	String get contact => '联系方式';
@@ -4934,7 +4934,7 @@ extension on Translations {
 			'about.networkError' => '网络错误',
 			'about.projectAddress' => '项目地址',
 			'about.projectAddressDesc' => '喜欢这个项目吗？点个star支持一下吧！',
-			'about.projectLink' => '前往 GitHub 仓库 (deretame/Breeze) ⭐',
+			'about.projectLink' => '前往 GitHub 仓库 (DouChi39/DCike) ⭐',
 			'about.contact' => '联系方式',
 			'about.contactDesc' => '有任何想法或问题，欢迎来找我聊聊~',
 			'about.feedback' => '反馈与建议',

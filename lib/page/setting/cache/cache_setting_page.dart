@@ -221,7 +221,7 @@ class _CacheSettingPageState extends State<CacheSettingPage> {
               const SizedBox(height: 8),
               const Divider(height: 1, thickness: 0.3),
               _buildSectionTitle(context, t.cache.autoClean),
-              SwitchListTile(
+              GlassSwitchListTile(
                 secondary: const Icon(Icons.auto_delete_outlined),
                 title: Text(t.cache.autoClean),
                 subtitle: Text(t.cache.autoCleanSubtitle),

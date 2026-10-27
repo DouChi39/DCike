@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:zephyr/i18n/strings.g.dart';
+import 'package:zephyr/page/setting/common/setting_ui.dart';
 import 'package:zephyr/network/http/plugin/unified_plugin_envelope.dart';
 import 'package:zephyr/network/http/plugin/unified_comic_plugin.dart';
 import 'package:zephyr/plugin/bridge/plugin_config_bridge.dart';
@@ -127,7 +128,7 @@ class _PluginSettingSchemeSectionState
 
     if (kind == 'switch') {
       final current = value == true;
-      return SwitchListTile(
+      return GlassSwitchListTile(
         title: Text(label),
         value: current,
         onChanged: (next) async {

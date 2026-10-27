@@ -93,7 +93,7 @@ class _DebugSettingPageState extends State<DebugSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.memory_outlined),
       title: Text(t.settings.memoryDebug),
       subtitle: Text(t.settings.memoryDebugSubtitle),
@@ -158,7 +158,7 @@ class _DebugSettingPageState extends State<DebugSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.cloud_off_outlined),
       title: Text(t.settings.blockRustHttpRequests),
       subtitle: Text(t.settings.blockRustHttpRequestsSubtitle),
@@ -177,7 +177,7 @@ class _DebugSettingPageState extends State<DebugSettingPage> {
     GlobalSettingState state,
     GlobalSettingCubit cubit,
   ) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: const Icon(Icons.auto_awesome_outlined),
       title: Text(t.settings.forceEnableImpeller),
       subtitle: Text(t.settings.forceEnableImpellerSubtitle),

@@ -104,7 +104,7 @@ class _BookshelfSettingPageState extends State<BookshelfSettingPage> {
     required bool value,
     required ValueChanged<bool> onChanged,
   }) {
-    return SwitchListTile(
+    return GlassSwitchListTile(
       secondary: Icon(icon),
       title: Text(title),
       subtitle: Text(subtitle),

@@ -422,9 +422,12 @@ fn build_client(host: &str, username: &str, password: &str) -> Result<WebDavClie
         )));
     }
 
-    // 复用全局 HTTP 配置：代理（HTTP / SOCKS5）、TLS 校验开关与超时统一生效。
+    // 延续原版 WebDAV 对自建服务器证书的兼容性，仅影响当前 WebDAV 客户端。
+    // 全局 HTTP / 图源请求仍保留证书验证；代理设置继续复用。
+    let mut config = current_http_client_config();
+    config.disable_tls_verify = true;
     let agent = build_http_client_ex(
-        &current_http_client_config(),
+        &config,
         BuildHttpClientOptions {
             no_proxy: false,
             timeout: Some(Duration::from_secs(120)),

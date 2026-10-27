@@ -54,12 +54,6 @@ class SettingsWidget extends StatelessWidget {
         const Divider(height: 1, thickness: 0.3),
         _buildSectionTitle(context, t.more.others, Icons.more_horiz),
         ListTile(
-          leading: const Icon(Icons.history),
-          title: Text(t.more.changelog),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => context.pushRoute(ChangelogRoute()),
-        ),
-        ListTile(
           leading: const Icon(Icons.info_outline),
           title: Text(t.about.title),
           trailing: const Icon(Icons.chevron_right),

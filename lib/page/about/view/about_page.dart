@@ -5,7 +5,6 @@ import 'package:zephyr/i18n/strings.g.dart';
 import 'package:zephyr/main.dart';
 import 'package:zephyr/network/utils/github_proxy.dart';
 
-import 'package:zephyr/service/update/check_update.dart';
 
 // --- 风格常量 ---
 const Color kBgColor = Color(0xFF12121C); // --bg-color
@@ -25,7 +24,9 @@ class AboutPage extends StatefulWidget {
 }
 
 class _AboutPageState extends State<AboutPage> {
-  String _appVersion = t.about.loading;
+  // Keep the pre-release build label intentionally generic until the first
+  // public DCike release is ready.
+  static const String _appVersion = 'x';
   List<Map<String, dynamic>> _contributors = [];
   bool _contributorsLoading = true;
   String? _contributorsError;
@@ -37,18 +38,11 @@ class _AboutPageState extends State<AboutPage> {
   }
 
   Future<void> _initData() async {
-    final version = await getAppVersion();
     await _fetchContributors();
-
-    if (mounted) {
-      setState(() {
-        _appVersion = version;
-      });
-    }
   }
 
   Future<void> _fetchContributors() async {
-    const repoPath = '/repos/deretame/Breeze/contributors';
+    const repoPath = '/repos/DouChi39/DCike/contributors';
     final urls = [
       ...mirrorBaseUrls.map((base) => '${base}https://api.github.com$repoPath'),
       'https://api.github.com$repoPath',
@@ -59,7 +53,7 @@ class _AboutPageState extends State<AboutPage> {
           final response = await fetch(
             url,
             headers: const {
-              'User-Agent': 'Breeze',
+              'User-Agent': 'DCike',
               'Accept': 'application/vnd.github+json',
             },
             query: {'per_page': 20},
@@ -140,29 +134,11 @@ class _AboutPageState extends State<AboutPage> {
                         title: t.about.projectAddress,
                         desc: t.about.projectAddressDesc,
                         linkText: t.about.projectLink,
-                        url: "https://github.com/deretame/Breeze",
-                        delay: 200,
+                        url: "https://github.com/DouChi39/DCike",
                       ),
 
                       // --- Contributors Section ---
                       _buildContributorsSection(),
-
-                      _buildSection(
-                        icon: "💬",
-                        title: t.about.contact,
-                        desc: t.about.contactDesc,
-                        linkText: "Telegram: @breeze_zh_cn",
-                        url: "https://t.me/breeze_zh_cn",
-                        delay: 400,
-                      ),
-                      _buildSection(
-                        icon: "🛠️",
-                        title: t.about.feedback,
-                        desc: t.about.feedbackDesc,
-                        linkText: t.about.feedbackLink,
-                        url: "https://github.com/deretame/Breeze/issues",
-                        delay: 600,
-                      ),
 
                       const SizedBox(height: 30),
 
@@ -234,10 +210,7 @@ class _AboutPageState extends State<AboutPage> {
               ),
             ],
             image: const DecorationImage(
-              // 如果网络图片加载慢，可以换成 asset/image/app-icon.png
-              image: NetworkImage(
-                "https://avatars.githubusercontent.com/u/81013544",
-              ),
+              image: AssetImage('asset/image/dcike-about-avatar.png'),
               fit: BoxFit.cover,
             ),
           ),
@@ -245,7 +218,7 @@ class _AboutPageState extends State<AboutPage> {
         const SizedBox(height: 20),
         // Name
         const Text(
-          "windy",
+          "DouChi39",
           style: TextStyle(
             fontSize: 40,
             fontWeight: FontWeight.bold,
@@ -255,7 +228,7 @@ class _AboutPageState extends State<AboutPage> {
         ),
         const SizedBox(height: 5),
         const Text(
-          "BREEZE PROJECT",
+          "DCIKE PROJECT",
           style: TextStyle(
             fontSize: 18,
             color: kAccentColor,
@@ -273,7 +246,6 @@ class _AboutPageState extends State<AboutPage> {
     required String desc,
     required String linkText,
     required String url,
-    required int delay,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 25),

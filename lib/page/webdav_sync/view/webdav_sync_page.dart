@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:markdown_widget/widget/markdown_block.dart';
 import 'package:zephyr/config/global/global_setting.dart';
 import 'package:zephyr/i18n/strings.g.dart';
+import 'package:zephyr/network/sync/webdav_errors.dart';
 import 'package:zephyr/page/webdav_sync/webdav_sync.dart';
 
 import 'package:zephyr/main.dart';
@@ -289,6 +290,7 @@ class _WebDavSyncPageState extends State<WebDavSyncPage> {
       _s3Port.clear();
       setState(() {
         _s3UseSSL = true;
+        _s3PathStyle = false;
       });
     }
   }
@@ -341,7 +343,8 @@ class _WebDavSyncPageState extends State<WebDavSyncPage> {
       if (!mounted) return;
       commonDialog(context, t.webdavSync.success, t.webdavSync.webdavConnected);
     } catch (e) {
-      logger.e(e);
+      final error = safeWebDavException(e);
+      logger.w(error.message);
       if (mounted) {
         context.pop();
       }
@@ -350,7 +353,7 @@ class _WebDavSyncPageState extends State<WebDavSyncPage> {
       commonDialog(
         context,
         t.webdavSync.error,
-        t.webdavSync.webdavConnectFailed(error: e.toString()),
+        t.webdavSync.webdavConnectFailed(error: error.message),
       );
     }
   }

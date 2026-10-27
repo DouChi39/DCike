@@ -371,6 +371,9 @@ Map<String, dynamic> _buildSettingsPayload(
   globalSettingJson.remove('customExportPath');
   globalSettingJson.remove('appLockSetting');
   globalSettingJson.remove('cacheSetting');
+  // Connection credentials are only needed locally, including for legacy payloads.
+  globalSettingJson.remove('syncSetting');
+  globalSettingJson.remove('logAddress');
 
   final pluginBlock = snapshot.blocks[_pluginsBlockName];
   final pluginConfigs = pluginBlock == null

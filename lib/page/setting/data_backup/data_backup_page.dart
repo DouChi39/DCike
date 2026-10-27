@@ -49,7 +49,7 @@ class _DataBackupPageState extends State<DataBackupPage> {
                 t.dataBackup.exportSection,
                 Icons.file_upload_outlined,
               ),
-              SwitchListTile(
+              GlassSwitchListTile(
                 secondary: const Icon(Icons.folder_outlined),
                 title: Text(t.dataBackup.includeDownloads),
                 subtitle: Text(t.dataBackup.includeDownloadsSubtitle),

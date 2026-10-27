@@ -23,6 +23,24 @@ import Darwin
         withId: "dcike/native_tab_bar"
       )
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeGlassHomeCategories") {
+      registrar.register(
+        DCikeGlassHomeCategoriesFactory(messenger: registrar.messenger()),
+        withId: "dcike/native_home_categories"
+      )
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeGlassSwitch") {
+      registrar.register(
+        DCikeGlassSwitchFactory(messenger: registrar.messenger()),
+        withId: "dcike/native_glass_switch"
+      )
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeGlassSurface") {
+      registrar.register(
+        DCikeGlassSurfaceFactory(messenger: registrar.messenger()),
+        withId: "dcike/native_glass_surface"
+      )
+    }
   }
 
   private func setupMemoryChannel(pluginRegistry: FlutterPluginRegistry) {

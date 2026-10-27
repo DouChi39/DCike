@@ -467,7 +467,7 @@ class _RealSrSettingPageState extends State<RealSrSettingPage> {
           : ListView(
               children: [
                 settingSectionTitle(context, t.realSr.autoUpscaleSection),
-                SwitchListTile(
+                GlassSwitchListTile(
                   secondary: const Icon(Icons.auto_fix_high_outlined),
                   title: Text(t.realSr.autoUpscale),
                   subtitle: Text(

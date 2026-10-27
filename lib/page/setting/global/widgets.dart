@@ -31,7 +31,7 @@ Widget proxyToggle(
   return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
-      SwitchListTile(
+      GlassSwitchListTile(
         secondary: const Icon(Icons.router_outlined),
         title: Text(t.settings.proxy),
         subtitle: Text(t.settings.proxyEnabledSubtitle),
