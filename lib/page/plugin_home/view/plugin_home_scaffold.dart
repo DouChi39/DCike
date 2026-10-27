@@ -553,12 +553,17 @@ class _NativeGlassHomeCategoryBarState extends State<_NativeGlassHomeCategoryBar
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.controller,
-      builder: (context, _) => UiKitView(
-        viewType: 'dcike/native_home_categories',
-        layoutDirection: Directionality.of(context),
-        creationParams: _configuration,
-        creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: _onPlatformViewCreated,
+      builder: (context, _) => SizedBox(
+        // AppBar title layout can briefly report an unbounded height while a
+        // route is entering. Keep the platform view finite for UIKit.
+        height: kToolbarHeight,
+        child: UiKitView(
+          viewType: 'dcike/native_home_categories',
+          layoutDirection: Directionality.of(context),
+          creationParams: _configuration,
+          creationParamsCodec: const StandardMessageCodec(),
+          onPlatformViewCreated: _onPlatformViewCreated,
+        ),
       ),
     );
   }
@@ -673,23 +678,19 @@ class _GlassCircleActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 5),
-      child: ClipOval(
-        child: BackdropFilter(
-          filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-          child: Material(
-            color: scheme.surface.withValues(alpha: isDark ? .48 : .68),
-            shape: const CircleBorder(),
-            child: IconButton(
-              tooltip: tooltip,
-              onPressed: onPressed,
-              icon: Icon(icon),
-              visualDensity: VisualDensity.compact,
-            ),
-          ),
+      // Keep action buttons transparent. The old BackdropFilter + Material
+      // combination produced a white translucent disk over every icon.
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(icon),
+        visualDensity: VisualDensity.compact,
+        style: IconButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          overlayColor: Colors.transparent,
+          shadowColor: Colors.transparent,
         ),
       ),
     );

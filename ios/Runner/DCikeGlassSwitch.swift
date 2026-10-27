@@ -53,9 +53,6 @@ private final class DCikeGlassSwitchPlatformView: NSObject, FlutterPlatformView 
 
 private final class DCikeGlassSwitch: UIView {
   var onChanged: ((Bool) -> Void)?
-  // The effect is assigned in refreshGlass so the view can select the native
-  // UIGlassEffect only on systems that provide it.
-  private let glass = UIVisualEffectView(effect: nil)
   private let toggle = UISwitch()
   private var darkMode = false
 
@@ -64,7 +61,8 @@ private final class DCikeGlassSwitch: UIView {
     backgroundColor = .clear
     isOpaque = false
     isUserInteractionEnabled = true
-    addSubview(glass)
+    // UISwitch already owns its native track and thumb. A second material
+    // layer here creates a translucent white disk around every switch.
     addSubview(toggle)
     toggle.addTarget(self, action: #selector(valueChanged), for: .valueChanged)
     toggle.translatesAutoresizingMaskIntoConstraints = false
@@ -92,31 +90,16 @@ private final class DCikeGlassSwitch: UIView {
   @objc private func valueChanged() { onChanged?(toggle.isOn) }
 
   private func refreshGlass() {
-    if UIAccessibility.isReduceTransparencyEnabled {
-      glass.effect = nil
-      glass.backgroundColor = darkMode ? .secondarySystemBackground : .tertiarySystemBackground
-    } else if #available(iOS 26.0, *) {
-      let effect = UIGlassEffect(style: .regular)
-      effect.isInteractive = true
-      glass.effect = effect
-      glass.backgroundColor = .clear
-    } else {
-      glass.effect = UIBlurEffect(style: darkMode ? .systemMaterialDark : .systemMaterialLight)
-      glass.backgroundColor = .clear
-    }
-    glass.isUserInteractionEnabled = false
-    glass.layer.cornerRadius = 16
-    glass.layer.cornerCurve = .continuous
-    glass.clipsToBounds = true
+    toggle.backgroundColor = .clear
     layer.shadowColor = UIColor.black.cgColor
-    layer.shadowOpacity = darkMode ? 0.24 : 0.12
-    layer.shadowRadius = 5
-    layer.shadowOffset = CGSize(width: 0, height: 2)
+    layer.shadowOpacity = 0
+    layer.shadowRadius = 0
+    layer.shadowOffset = .zero
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
-    glass.frame = bounds
-    glass.layer.cornerRadius = bounds.height / 2
+    guard bounds.width.isFinite, bounds.height.isFinite,
+          bounds.width > 0, bounds.height > 0 else { return }
   }
 }

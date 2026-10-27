@@ -80,15 +80,20 @@ class _IosGlassTabBarState extends State<IosGlassTabBar> {
 
   @override
   Widget build(BuildContext context) {
-    return UiKitView(
-      viewType: 'dcike/native_tab_bar',
-      layoutDirection: Directionality.of(context),
-      creationParams: _configuration,
-      creationParamsCodec: const StandardMessageCodec(),
-      onPlatformViewCreated: _onPlatformViewCreated,
-      gestureRecognizers: {
-        Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
-      },
+    return SizedBox(
+      // Keep UIKit's platform view finite during route transitions and safe
+      // area changes; an unbounded height becomes NaN inside UIScrollView.
+      height: 80,
+      child: UiKitView(
+        viewType: 'dcike/native_tab_bar',
+        layoutDirection: Directionality.of(context),
+        creationParams: _configuration,
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: _onPlatformViewCreated,
+        gestureRecognizers: {
+          Factory<OneSequenceGestureRecognizer>(() => EagerGestureRecognizer()),
+        },
+      ),
     );
   }
 }

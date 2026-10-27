@@ -89,13 +89,17 @@ private final class DCikeGlassTabBar: UIView {
     for index in symbols.indices {
       let button = DCikeTabButton(type: .custom)
       button.tag = index
+      button.addTarget(self, action: #selector(beginButtonPress(_:)), for: .touchDown)
       button.addTarget(self, action: #selector(activate(_:)), for: .touchUpInside)
       surface.addSubview(button)
       buttons.append(button)
     }
     let gesture = UILongPressGestureRecognizer(target: self, action: #selector(trackSelection(_:)))
     gesture.minimumPressDuration = 0
-    gesture.allowableMovement = .greatestFiniteMagnitude
+    gesture.allowableMovement = 10_000
+    gesture.cancelsTouchesInView = false
+    gesture.delaysTouchesBegan = false
+    gesture.delaysTouchesEnded = false
     surface.addGestureRecognizer(gesture)
     NotificationCenter.default.addObserver(
       self, selector: #selector(accessibilityChanged),
@@ -167,9 +171,11 @@ private final class DCikeGlassTabBar: UIView {
         let glass = UIGlassEffect(style: .regular)
         glass.isInteractive = true
         material.effect = glass
-        let selectionGlass = UIGlassEffect(style: .clear)
+        // A regular glass lens provides the native refraction and color
+        // response. The clear style is too faint to show the pressed bubble.
+        let selectionGlass = UIGlassEffect(style: .regular)
         selectionGlass.isInteractive = true
-        selectionGlass.tintColor = UIColor.systemGray.withAlphaComponent(darkMode ? 0.24 : 0.12)
+        selectionGlass.tintColor = UIColor.systemBlue.withAlphaComponent(darkMode ? 0.34 : 0.22)
         lens.effect = selectionGlass
       } else {
         material.effect = UIBlurEffect(style: .systemMaterial)
@@ -180,10 +186,21 @@ private final class DCikeGlassTabBar: UIView {
     layer.shadowOpacity = darkMode ? 0.3 : 0.13
     layer.shadowRadius = 10
     layer.shadowOffset = CGSize(width: 0, height: 3)
+    lens.layer.borderWidth = 0.7
+    lens.layer.borderColor = UIColor.systemBlue.withAlphaComponent(darkMode ? 0.42 : 0.28).cgColor
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    guard bounds.origin.x.isFinite, bounds.origin.y.isFinite,
+          bounds.width.isFinite, bounds.height.isFinite,
+          bounds.width >= 0, bounds.height >= 0 else { return }
+    guard bounds.width > 0, bounds.height > 0 else {
+      surface.frame = .zero
+      material.frame = .zero
+      lens.frame = .zero
+      return
+    }
     // Reserve room for the expanded lens inside Flutter's platform-view boundary.
     let width = min(520, max(0, bounds.width - 32))
     let surfaceFrame = CGRect(x: (bounds.width - width) / 2, y: 8, width: width, height: max(0, bounds.height - 16))
@@ -236,8 +253,8 @@ private final class DCikeGlassTabBar: UIView {
 
   private func pressedLensTransform() -> CGAffineTransform {
     guard !UIAccessibility.isReduceMotionEnabled else { return .identity }
-    let stretch = min(0.18, abs(dragVelocity) / 7000)
-    return CGAffineTransform(scaleX: 1.14 + stretch, y: 1.16 - stretch * 0.3)
+    let stretch = min(0.24, abs(dragVelocity) / 6500)
+    return CGAffineTransform(scaleX: 1.20 + stretch, y: 1.18 - stretch * 0.22)
   }
 
   private func updatePressedSymbols() {
@@ -320,11 +337,13 @@ private final class DCikeGlassTabBar: UIView {
       lastDragTime = time
       trackLens(at: point, beginning: false)
     case .ended:
+      guard dragging else { return }
       // Dragging far away cancels, just like moving outside a normal control.
       let isInside = surface.bounds.insetBy(dx: -24, dy: -32).contains(point)
       if CACurrentMediaTime() - lastDragTime > 0.12 { dragVelocity = 0 }
       finishSelection(isInside ? index(at: point.x) : selectedIndex, commit: isInside)
     case .cancelled, .failed:
+      guard dragging else { return }
       finishSelection(selectedIndex, commit: false)
     default:
       break
@@ -338,9 +357,35 @@ private final class DCikeGlassTabBar: UIView {
     dragX = point.x
     dragY = point.y - surface.bounds.midY
     updateButtons()
+    if beginning {
+      // Place the lens under the finger immediately. Animating from the
+      // selected item makes it visibly sweep in from the left on every press.
+      interruptLensAnimation()
+      positionLens(centerX: point.x)
+      lens.transform = pressedLensTransform()
+      updatePressedSymbols()
+      return
+    }
     animateLens(to: lensCenter(centerX: point.x), transform: pressedLensTransform(),
                 duration: beginning ? 0.30 : 0.16, damping: beginning ? 0.60 : 0.82,
                 velocity: beginning ? 0 : dragVelocity)
+  }
+
+  @objc private func beginButtonPress(_ sender: UIButton) {
+    guard buttons.indices.contains(sender.tag), !surface.bounds.isEmpty else { return }
+    dragging = true
+    dragVelocity = 0
+    lastDragPoint = sender.center
+    lastDragTime = CACurrentMediaTime()
+    previewIndex = sender.tag
+    dragX = sender.center.x
+    dragY = 0
+    feedback.prepare()
+    interruptLensAnimation()
+    positionLens(centerX: sender.center.x)
+    lens.transform = pressedLensTransform()
+    updateButtons()
+    updatePressedSymbols()
   }
 
   @objc private func activate(_ sender: UIButton) { finishSelection(sender.tag, commit: true) }
@@ -536,17 +581,33 @@ private final class DCikeGlassHomeCategories: UIView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    guard bounds.origin.x.isFinite, bounds.origin.y.isFinite,
+          bounds.width.isFinite, bounds.height.isFinite,
+          bounds.width >= 0, bounds.height >= 0 else { return }
+    guard bounds.width > 0, bounds.height > 0 else {
+      material.frame = .zero
+      scrollView.frame = .zero
+      scrollView.contentSize = .zero
+      selection.frame = .zero
+      return
+    }
     let frame = bounds.insetBy(dx: 8, dy: 4)
+    guard frame.origin.x.isFinite, frame.origin.y.isFinite,
+          frame.width.isFinite, frame.height.isFinite,
+          frame.width >= 0, frame.height >= 0 else { return }
     material.frame = frame
     material.layer.cornerRadius = frame.height / 2
     scrollView.frame = frame.insetBy(dx: 4, dy: 3)
     var x: CGFloat = 8
     let height = scrollView.bounds.height
+    guard height.isFinite, height >= 0 else { return }
     for button in buttons {
-      let width = max(46, button.intrinsicContentSize.width + 20)
+      let intrinsicWidth = button.intrinsicContentSize.width
+      let width = intrinsicWidth.isFinite ? max(46, intrinsicWidth + 20) : 46
       button.frame = CGRect(x: x, y: 0, width: width, height: height)
       x += width + 2
     }
+    guard x.isFinite else { return }
     scrollView.contentSize = CGSize(width: x + 8, height: height)
     updateButtonStyles(animated: false)
     if buttons.indices.contains(selectedIndex) {
