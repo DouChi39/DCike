@@ -91,7 +91,7 @@ jobs:
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
           export RUSTFLAGS="$CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS"
           set +e
-          flutter build ios --release --no-codesign --no-pub --dart-define=dcike_enable_remote_diagnostics=false --split-debug-info=build/symbols 2>&1 | tee "$build_log"
+          flutter build ios --release --verbose --no-codesign --no-pub --dart-define=dcike_enable_remote_diagnostics=false --split-debug-info=build/symbols 2>&1 | tee "$build_log"
           status=${PIPESTATUS[0]}
           set -e
           echo "Flutter build exit code: $status" >> "$build_log"
