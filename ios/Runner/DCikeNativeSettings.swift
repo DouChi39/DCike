@@ -332,34 +332,17 @@ struct DCikeSyncSettings: View {
 
   var body: some View {
     Form {
-      Section("同步服务") {
-        Picker("服务", selection: bind("syncServiceType", fallback: "none")) { Text("关闭").tag("none"); Text("WebDAV").tag("webdav"); Text("S3").tag("s3") }
-      }
+      serviceSection
       if kind == "webdav" {
-        Section("WebDAV") {
-          TextField("服务器地址", text: bind("webdavSetting.host")).keyboardType(.URL)
-          TextField("用户名", text: bind("webdavSetting.username"))
-          SecureField("密码", text: bind("webdavSetting.password"))
-        }.textInputAutocapitalization(.never).autocorrectionDisabled()
+        webdavSection
       }
       if kind == "s3" {
         s3Section
       }
       if kind != "none" {
-        Section {
-          Button("测试连接") { testConnection() }
-          Button("删除配置", role: .destructive) { confirmClear = true }
-        } footer: { Text("删除配置只清除当前服务的本地连接信息，不会删除云端数据。") }
-        Section("同步内容") {
-          syncToggle("同步应用设置", "同步外观、书架和阅读设置。", "syncSettings")
-          syncToggle("同步图源配置", "同步图源配置，可能包含图源登录信息。", "syncPlugins")
-          syncToggle("自动同步", "自动同步本地和云端数据。", "autoSync", fallback: true)
-          syncToggle("显示同步通知", "显示同步操作的结果通知。", "syncNotify", fallback: true)
-        }
-        Section("手动同步") {
-          Button("上传本地数据") { synchronize("upload") }
-          Button("从云端恢复") { confirmDownload = true }
-        } footer: { Text("服务器信息和密码只保存在你的应用中；上传图源配置可能包含该图源的登录信息。") }
+        connectionSection
+        syncContentSection
+        manualSyncSection
       }
     }
     .navigationTitle("云端同步").navigationBarTitleDisplayMode(.inline)
@@ -369,6 +352,42 @@ struct DCikeSyncSettings: View {
     .confirmationDialog("从云端恢复数据？", isPresented: $confirmDownload, titleVisibility: .visible) { Button("恢复云端数据", role: .destructive) { synchronize("download") } } message: { Text("云端数据将合并或替换对应的本地记录，请先保留备份。") }
     .confirmationDialog("删除当前服务的配置？", isPresented: $confirmClear, titleVisibility: .visible) { Button("删除配置", role: .destructive) { clearConfiguration() } } message: { Text("只删除本机保存的连接信息，不会删除云端数据。") }
     .alert("同步", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好", role: .cancel) {} } message: { Text(message ?? "") }
+  }
+  private var serviceSection: some View {
+    Section("同步服务") {
+      Picker("服务", selection: bind("syncServiceType", fallback: "none")) {
+        Text("关闭").tag("none")
+        Text("WebDAV").tag("webdav")
+        Text("S3").tag("s3")
+      }
+    }
+  }
+  private var webdavSection: some View {
+    Section("WebDAV") {
+      TextField("服务器地址", text: bind("webdavSetting.host")).keyboardType(.URL)
+      TextField("用户名", text: bind("webdavSetting.username"))
+      SecureField("密码", text: bind("webdavSetting.password"))
+    }.textInputAutocapitalization(.never).autocorrectionDisabled()
+  }
+  private var connectionSection: some View {
+    Section {
+      Button("测试连接") { testConnection() }
+      Button("删除配置", role: .destructive) { confirmClear = true }
+    } footer: { Text("删除配置只清除当前服务的本地连接信息，不会删除云端数据。") }
+  }
+  private var syncContentSection: some View {
+    Section("同步内容") {
+      syncToggle("同步应用设置", "同步外观、书架和阅读设置。", "syncSettings")
+      syncToggle("同步图源配置", "同步图源配置，可能包含图源登录信息。", "syncPlugins")
+      syncToggle("自动同步", "自动同步本地和云端数据。", "autoSync", fallback: true)
+      syncToggle("显示同步通知", "显示同步操作的结果通知。", "syncNotify", fallback: true)
+    }
+  }
+  private var manualSyncSection: some View {
+    Section("手动同步") {
+      Button("上传本地数据") { synchronize("upload") }
+      Button("从云端恢复") { confirmDownload = true }
+    } footer: { Text("服务器信息和密码只保存在你的应用中；上传图源配置可能包含该图源的登录信息。") }
   }
   private var s3Section: some View {
     Section("S3") {
