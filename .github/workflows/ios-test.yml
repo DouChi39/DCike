@@ -118,7 +118,7 @@ jobs:
             line=${line//$'\r'/'%0D'}
             line=${line//$'\n'/'%0A'}
             echo "::error::$line"
-          done
+          done || true
 
       - name: Upload build diagnostics
         if: always()
