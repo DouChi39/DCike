@@ -10,6 +10,11 @@
 		DC1CE0010000000000000003 /* DCikeGlassSwitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE0010000000000000004 /* DCikeGlassSwitch.swift */; };
 		DC1CE0010000000000000001 /* DCikeGlassTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE0010000000000000002 /* DCikeGlassTabBar.swift */; };
 		DC1CE0010000000000000005 /* DCikeGlassSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE0010000000000000006 /* DCikeGlassSurface.swift */; };
+		DC1CE0010000000000000008 /* DCikeNativeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE0010000000000000007 /* DCikeNativeApp.swift */; };
+		DC1CE001000000000000000A /* DCikeNativeContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE0010000000000000009 /* DCikeNativeContent.swift */; };
+		DC1CE001000000000000000C /* DCikeNativeSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE001000000000000000B /* DCikeNativeSettings.swift */; };
+		DC1CE001000000000000000E /* DCikeNativeReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE001000000000000000D /* DCikeNativeReader.swift */; };
+		DC1CE0010000000000000010 /* DCikeNativeLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC1CE001000000000000000F /* DCikeNativeLock.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		32943BA289960787F6CBD337 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 38D65075600590DF3A7CDC0F /* Pods_RunnerTests.framework */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
@@ -50,6 +55,11 @@
 		DC1CE0010000000000000004 /* DCikeGlassSwitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeGlassSwitch.swift; sourceTree = "<group>"; };
 		DC1CE0010000000000000002 /* DCikeGlassTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeGlassTabBar.swift; sourceTree = "<group>"; };
 		DC1CE0010000000000000006 /* DCikeGlassSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeGlassSurface.swift; sourceTree = "<group>"; };
+		DC1CE0010000000000000007 /* DCikeNativeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeNativeApp.swift; sourceTree = "<group>"; };
+		DC1CE0010000000000000009 /* DCikeNativeContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeNativeContent.swift; sourceTree = "<group>"; };
+		DC1CE001000000000000000B /* DCikeNativeSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeNativeSettings.swift; sourceTree = "<group>"; };
+		DC1CE001000000000000000D /* DCikeNativeReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeNativeReader.swift; sourceTree = "<group>"; };
+		DC1CE001000000000000000F /* DCikeNativeLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DCikeNativeLock.swift; sourceTree = "<group>"; };
 		002D69972F52841F00F77827 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
 		0F7C25E9C110064E41086C2E /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
@@ -176,6 +186,11 @@
 				DC1CE0010000000000000002 /* DCikeGlassTabBar.swift */,
 				DC1CE0010000000000000004 /* DCikeGlassSwitch.swift */,
 				DC1CE0010000000000000006 /* DCikeGlassSurface.swift */,
+				DC1CE0010000000000000007 /* DCikeNativeApp.swift */,
+				DC1CE0010000000000000009 /* DCikeNativeContent.swift */,
+				DC1CE001000000000000000B /* DCikeNativeSettings.swift */,
+				DC1CE001000000000000000D /* DCikeNativeReader.swift */,
+				DC1CE001000000000000000F /* DCikeNativeLock.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -404,6 +419,11 @@
 				DC1CE0010000000000000001 /* DCikeGlassTabBar.swift in Sources */,
 				DC1CE0010000000000000003 /* DCikeGlassSwitch.swift in Sources */,
 				DC1CE0010000000000000005 /* DCikeGlassSurface.swift in Sources */,
+				DC1CE0010000000000000008 /* DCikeNativeApp.swift in Sources */,
+				DC1CE001000000000000000A /* DCikeNativeContent.swift in Sources */,
+				DC1CE001000000000000000C /* DCikeNativeSettings.swift in Sources */,
+				DC1CE001000000000000000E /* DCikeNativeReader.swift in Sources */,
+				DC1CE0010000000000000010 /* DCikeNativeLock.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 			);
@@ -482,7 +502,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;
@@ -612,7 +632,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
@@ -663,7 +683,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = iphoneos;

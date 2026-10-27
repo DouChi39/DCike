@@ -12,6 +12,7 @@ import 'package:zephyr/config/router/router.gr.dart';
 import 'package:zephyr/i18n/strings.g.dart';
 import 'package:zephyr/page/search/cubit/search_cubit.dart';
 import 'package:zephyr/service/download/download_queue_manager.dart';
+import 'package:zephyr/service/native/ios_native_bridge.dart';
 import 'package:zephyr/page/comic_follow/cubit/comic_follow_cubit.dart';
 import 'package:zephyr/service/lifecycle/foreground_task/foreground_task_service.dart';
 import 'package:zephyr/service/lifecycle/notification_service.dart';
@@ -53,6 +54,7 @@ class _NavigationBarState extends State<NavigationBar> {
   DateTime? _lastToastShownAt;
   (ToastType, String?, String, Duration)? _lastToastEvent;
   late HideOnScrollSettings hideOnScrollSettings;
+  bool? _nativeMounted;
 
   static bool _notificationsInitialized = false; // ← 使用静态变量，跨实例共享
   bool _isInitializingNotifications = false;
@@ -62,6 +64,17 @@ class _NavigationBarState extends State<NavigationBar> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (Platform.isIOS && mounted) {
+        try {
+          final nativeMounted = await IosNativeBridge.mountForNavigation(
+            context,
+          );
+          if (mounted) setState(() => _nativeMounted = nativeMounted);
+        } catch (_) {
+          if (mounted) setState(() => _nativeMounted = false);
+        }
+      }
+      if (!mounted) return;
       checkUpdate(context);
       _autoSync();
       manageCacheSize(context);
@@ -116,6 +129,9 @@ class _NavigationBarState extends State<NavigationBar> {
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isIOS && _nativeMounted != false) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     final globalSettingState = context.watch<GlobalSettingCubit>().state;
     // 开关仅在 Android 展示；同时限制实际行为，避免同步设置后影响其他平台。
     final backPressExitEnabled =
@@ -422,6 +438,14 @@ class _NavigationBarState extends State<NavigationBar> {
   }
 
   void _goToLoginPage(String from, {String? message}) {
+    if (Platform.isIOS && _nativeMounted == true) {
+      unawaited(
+        IosNativeBridge.channel.invokeMethod<void>('notice', {
+          'message': '请在设置 → 图源中登录或重新登录该图源。',
+        }),
+      );
+      return;
+    }
     try {
       final pluginId = from.trim();
       if (pluginId.isEmpty) {
@@ -506,6 +530,14 @@ class _NavigationBarState extends State<NavigationBar> {
   }
 
   void _showToast(ToastEvent event) {
+    if (Platform.isIOS && _nativeMounted == true) {
+      unawaited(
+        IosNativeBridge.channel.invokeMethod<void>('notice', {
+          'message': event.message,
+        }),
+      );
+      return;
+    }
     final now = DateTime.now();
     final toastEvent = (event.type, event.title, event.message, event.duration);
     if (_lastToastEvent == toastEvent &&

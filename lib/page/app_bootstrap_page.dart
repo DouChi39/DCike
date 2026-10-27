@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:material_ui/material_ui.dart';
@@ -14,6 +15,7 @@ import 'package:zephyr/plugin/bridge/plugin_config_bridge.dart';
 import 'package:zephyr/plugin/plugin_cloud_update_service.dart';
 import 'package:zephyr/plugin/plugin_registry_service.dart';
 import 'package:zephyr/service/lifecycle/foreground_task/foreground_task_service.dart';
+import 'package:zephyr/service/native/ios_native_bridge.dart';
 import 'package:zephyr/src/rust/api/qjs.dart';
 import 'package:zephyr/widgets/gesture_lock.dart';
 import 'package:zephyr/widgets/toast.dart';
@@ -76,6 +78,18 @@ class _AppBootstrapViewState extends State<AppBootstrapView> {
 
     final stopwatch = Stopwatch()..start();
 
+    var nativeMounted = false;
+    if (Platform.isIOS) {
+      try {
+        // UIKit needs an attached window before mounting the native host.
+        await WidgetsBinding.instance.endOfFrame;
+        if (!mounted) return;
+        nativeMounted = await IosNativeBridge.mountForBootstrap(context);
+      } catch (_) {
+        nativeMounted = false;
+      }
+    }
+
     registerPersistentCallbacks();
 
     registerDartTools();
@@ -116,6 +130,25 @@ class _AppBootstrapViewState extends State<AppBootstrapView> {
     final globalSettingCubit = context.read<GlobalSettingCubit>();
     final globalSetting = globalSettingCubit.state;
     final appLockSetting = globalSetting.appLockSetting;
+    if (nativeMounted) {
+      try {
+        final completed = await IosNativeBridge.completeBootstrap();
+        if (!mounted) return;
+        if (completed) {
+          context.router.replace(const app_router.NavigationBar());
+        }
+        // A mounted native gate owns the iOS lock flow and cannot be bypassed
+        // by falling back to a second Flutter unlock dialog.
+        return;
+      } catch (_) {
+        if (mounted) {
+          await IosNativeBridge.channel.invokeMethod<void>('notice', {
+            'message': '启动验证未完成，请重新打开 DCike 后重试。',
+          });
+        }
+        return;
+      }
+    }
     if (appLockSetting.enabled && appLockSetting.isReady) {
       updateStatus(t.appBootstrap.verifyGesture);
       final unlockResult = await showGestureUnlockDialog(

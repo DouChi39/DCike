@@ -46,6 +46,7 @@ class ReaderHistoryService {
   DateTime? _lastUpdateTime;
   bool _isInserting = false;
   bool _isLoading = true;
+  Completer<void>? _pendingWrite;
   HistorySnapshot Function()? _snapshotProvider;
 
   /// 加载指定漫画的历史记录，并解析 comicInfo 供后续写入使用。
@@ -89,10 +90,19 @@ class ReaderHistoryService {
   /// 立即停止周期性保存。
   void stop() => _timer?.cancel();
 
-  Future<void> _writeHistory() async {
+  /// Save the final snapshot after any in-flight worker write has finished.
+  Future<void> flush() async {
+    while (_pendingWrite != null) {
+      await _pendingWrite!.future;
+    }
+    await _writeHistory(force: true);
+  }
+
+  Future<void> _writeHistory({bool force = false}) async {
     if (_isLoading || _comicInfo == null) return;
     if (_isInserting) return;
-    if (_lastUpdateTime != null &&
+    if (!force &&
+        _lastUpdateTime != null &&
         DateTime.now().difference(_lastUpdateTime!).inMilliseconds < 100) {
       return;
     }
@@ -107,6 +117,8 @@ class ReaderHistoryService {
     );
 
     _isInserting = true;
+    final completion = Completer<void>();
+    _pendingWrite = completion;
     try {
       final timestamp = DateTime.now().toUtc();
       final payload = <String, dynamic>{
@@ -131,6 +143,8 @@ class ReaderHistoryService {
     } finally {
       _isInserting = false;
       _lastUpdateTime = DateTime.now();
+      completion.complete();
+      if (identical(_pendingWrite, completion)) _pendingWrite = null;
     }
   }
 

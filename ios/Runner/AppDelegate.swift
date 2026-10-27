@@ -6,6 +6,7 @@ import Darwin
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let memoryChannelName = "memory_monitor"
   private var memoryChannel: FlutterMethodChannel?
+  private var nativeCoordinator: DCikeNativeCoordinator?
 
   override func application(
     _ application: UIApplication,
@@ -17,6 +18,9 @@ import Darwin
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setupMemoryChannel(pluginRegistry: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeSwiftUI") {
+      nativeCoordinator = DCikeNativeCoordinator(messenger: registrar.messenger())
+    }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DCikeGlassTabBar") {
       registrar.register(
         DCikeGlassTabBarFactory(messenger: registrar.messenger()),

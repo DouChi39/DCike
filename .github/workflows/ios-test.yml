@@ -30,7 +30,7 @@ jobs:
         with:
           # Keep the SDK/compiler stable because latest-stable can change
           # independently of the source commit. Xcode 26.6 provides iOS 26
-          # UIKit Liquid Glass APIs used by the native views.
+          # SwiftUI Liquid Glass APIs used by the native interface.
           xcode-version: '26.6'
 
       - name: Read pinned Flutter version
@@ -82,13 +82,28 @@ jobs:
           flutter precache --ios
           flutter pub get
 
+      - name: Test native bridge state
+        run: |
+          set -euo pipefail
+          flutter test --no-pub test/native_bridge_state_test.dart
+
+      - name: Check native SwiftUI sources
+        run: |
+          set -euo pipefail
+          flutter_framework="$FLUTTER_ROOT/bin/cache/artifacts/engine/ios-release/Flutter.xcframework/ios-arm64"
+          test -d "$flutter_framework/Flutter.framework"
+          xcrun swiftc -typecheck -swift-version 5 \
+            -sdk "$(xcrun --sdk iphoneos --show-sdk-path)" \
+            -target arm64-apple-ios16.0 -F "$flutter_framework" \
+            ios/Runner/DCikeNative*.swift 2>&1 | tee "$RUNNER_TEMP/dcike-ios-build.log"
+
       - name: Build unsigned iPhone app
         run: |
           set -uo pipefail
           build_log="$RUNNER_TEMP/dcike-ios-build.log"
           export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
           export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$(xcrun --sdk iphoneos --find clang)"
-          export IPHONEOS_DEPLOYMENT_TARGET="15.0"
+          export IPHONEOS_DEPLOYMENT_TARGET="16.0"
           export CFLAGS_aarch64_apple_ios="-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET -isysroot $SDKROOT"
           export CXXFLAGS_aarch64_apple_ios="$CFLAGS_aarch64_apple_ios"
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
@@ -153,8 +168,8 @@ jobs:
           {
             echo 'DCike-iOS.ipa is an unsigned iPhone build.'
             echo 'Download the ios-ipa artifact and sign/install the IPA using SideStore.'
-            echo 'Minimum supported iOS version: 15.0.'
-            echo 'Native Liquid Glass requires iOS 26; earlier iOS uses native material blur.'
+            echo 'Minimum supported iOS version: 16.0.'
+            echo 'Native Liquid Glass requires iOS 26; iOS 16-25 uses standard native SwiftUI controls.'
             echo 'DCike uses the independent bundle identifier app.dcike.reader.'
             echo 'After importing this build into LiveContainer, use its built-in Create Home Screen Icon feature.'
           } >> "$GITHUB_STEP_SUMMARY"
