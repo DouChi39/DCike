@@ -171,11 +171,11 @@ private final class DCikeGlassTabBar: UIView {
         let glass = UIGlassEffect(style: .regular)
         glass.isInteractive = true
         material.effect = glass
-        // A regular glass lens provides the native refraction and color
-        // response. The clear style is too faint to show the pressed bubble.
-        let selectionGlass = UIGlassEffect(style: .regular)
+        // The moving lens is intentionally colorless. Apple's clear glass
+        // keeps the native refraction and interactive distortion while the
+        // selected symbol itself remains blue.
+        let selectionGlass = UIGlassEffect(style: .clear)
         selectionGlass.isInteractive = true
-        selectionGlass.tintColor = UIColor.systemBlue.withAlphaComponent(darkMode ? 0.34 : 0.22)
         lens.effect = selectionGlass
       } else {
         material.effect = UIBlurEffect(style: .systemMaterial)
@@ -186,8 +186,8 @@ private final class DCikeGlassTabBar: UIView {
     layer.shadowOpacity = darkMode ? 0.3 : 0.13
     layer.shadowRadius = 10
     layer.shadowOffset = CGSize(width: 0, height: 3)
-    lens.layer.borderWidth = 0.7
-    lens.layer.borderColor = UIColor.systemBlue.withAlphaComponent(darkMode ? 0.42 : 0.28).cgColor
+    lens.layer.borderWidth = 0
+    lens.layer.borderColor = UIColor.clear.cgColor
   }
 
   override func layoutSubviews() {
@@ -366,9 +366,16 @@ private final class DCikeGlassTabBar: UIView {
       updatePressedSymbols()
       return
     }
-    animateLens(to: lensCenter(centerX: point.x), transform: pressedLensTransform(),
-                duration: beginning ? 0.30 : 0.16, damping: beginning ? 0.60 : 0.82,
-                velocity: beginning ? 0 : dragVelocity)
+    // During an active drag the lens must be locked to the finger. Starting a
+    // spring on every gesture update makes it lag behind and can look as if it
+    // is sweeping in from the previous tab. Reserve spring animation for the
+    // release/settle step only.
+    interruptLensAnimation()
+    UIView.performWithoutAnimation {
+      positionLens(centerX: point.x)
+      lens.transform = pressedLensTransform()
+      updatePressedSymbols()
+    }
   }
 
   @objc private func beginButtonPress(_ sender: UIButton) {

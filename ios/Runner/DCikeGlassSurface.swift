@@ -99,6 +99,9 @@ private final class DCikeGlassSurface: UIView {
 
   override func layoutSubviews() {
     super.layoutSubviews()
+    guard bounds.origin.x.isFinite, bounds.origin.y.isFinite,
+          bounds.width.isFinite, bounds.height.isFinite,
+          bounds.width >= 0, bounds.height >= 0 else { return }
     material.frame = bounds
     material.layer.cornerRadius = configuredRadius
     material.layer.cornerCurve = .continuous

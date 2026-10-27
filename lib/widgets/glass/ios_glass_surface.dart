@@ -49,14 +49,21 @@ class IosGlassSurface extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(cornerRadius),
       child: Stack(
-        fit: StackFit.passthrough,
+        // Let the Flutter child determine the card's intrinsic height first.
+        // A non-positioned UiKitView in a loose Column can otherwise receive
+        // an infinite height and make FlutterTouchInterceptingView use NaN.
+        fit: StackFit.loose,
         children: [
-          UiKitView(
-            viewType: 'dcike/native_glass_surface',
-            layoutDirection: Directionality.of(context),
-            creationParams: params,
-            creationParamsCodec: const StandardMessageCodec(),
-            gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+          Positioned.fill(
+            child: IgnorePointer(
+              child: UiKitView(
+                viewType: 'dcike/native_glass_surface',
+                layoutDirection: Directionality.of(context),
+                creationParams: params,
+                creationParamsCodec: const StandardMessageCodec(),
+                gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+              ),
+            ),
           ),
           child,
         ],
