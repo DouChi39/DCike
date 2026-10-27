@@ -343,16 +343,7 @@ struct DCikeSyncSettings: View {
         }.textInputAutocapitalization(.never).autocorrectionDisabled()
       }
       if kind == "s3" {
-        Section("S3") {
-          TextField("Endpoint", text: bind("s3Setting.endpoint")).keyboardType(.URL)
-          TextField("Bucket", text: bind("s3Setting.bucket"))
-          TextField("Region", text: bind("s3Setting.region"))
-          SecureField("Access Key", text: bind("s3Setting.accessKey"))
-          SecureField("Secret Key", text: bind("s3Setting.secretKey"))
-          TextField("端口（0 为默认）", text: Binding(get: { settingsText(settingsValue(draft, "s3Setting.port"), "0") }, set: { if let port = Int($0), (0...65535).contains(port) { settingsAssign(&draft, "s3Setting.port", port) } })).keyboardType(.numberPad)
-          Toggle("使用 HTTPS", isOn: toggle("s3Setting.useSSL", fallback: true))
-          Toggle("Path-style 地址", isOn: toggle("s3Setting.pathStyle"))
-        }.textInputAutocapitalization(.never).autocorrectionDisabled()
+        s3Section
       }
       if kind != "none" {
         Section {
@@ -378,6 +369,24 @@ struct DCikeSyncSettings: View {
     .confirmationDialog("从云端恢复数据？", isPresented: $confirmDownload, titleVisibility: .visible) { Button("恢复云端数据", role: .destructive) { synchronize("download") } } message: { Text("云端数据将合并或替换对应的本地记录，请先保留备份。") }
     .confirmationDialog("删除当前服务的配置？", isPresented: $confirmClear, titleVisibility: .visible) { Button("删除配置", role: .destructive) { clearConfiguration() } } message: { Text("只删除本机保存的连接信息，不会删除云端数据。") }
     .alert("同步", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好", role: .cancel) {} } message: { Text(message ?? "") }
+  }
+  private var s3Section: some View {
+    Section("S3") {
+      TextField("Endpoint", text: bind("s3Setting.endpoint")).keyboardType(.URL)
+      TextField("Bucket", text: bind("s3Setting.bucket"))
+      TextField("Region", text: bind("s3Setting.region"))
+      SecureField("Access Key", text: bind("s3Setting.accessKey"))
+      SecureField("Secret Key", text: bind("s3Setting.secretKey"))
+      TextField("端口（0 为默认）", text: s3PortBinding).keyboardType(.numberPad)
+      Toggle("使用 HTTPS", isOn: toggle("s3Setting.useSSL", fallback: true))
+      Toggle("Path-style 地址", isOn: toggle("s3Setting.pathStyle"))
+    }.textInputAutocapitalization(.never).autocorrectionDisabled()
+  }
+  private var s3PortBinding: Binding<String> {
+    Binding(
+      get: { settingsText(settingsValue(draft, "s3Setting.port"), "0") },
+      set: { if let port = Int($0), (0...65535).contains(port) { settingsAssign(&draft, "s3Setting.port", port) } }
+    )
   }
   private func bind(_ key: String, fallback: String = "") -> Binding<String> { Binding(get: { settingsText(settingsValue(draft, key), fallback) }, set: { settingsAssign(&draft, key, $0) }) }
   private func toggle(_ key: String, fallback: Bool = false) -> Binding<Bool> { Binding(get: { settingsValue(draft, key) as? Bool ?? fallback }, set: { settingsAssign(&draft, key, $0) }) }
