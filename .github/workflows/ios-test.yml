@@ -2,6 +2,9 @@ name: DCike iOS Test Build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ios
 
 permissions:
   contents: read
