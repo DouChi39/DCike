@@ -78,7 +78,8 @@ jobs:
 
       - name: Build unsigned iPhone app
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          build_log="$RUNNER_TEMP/dcike-ios-build.log"
           export SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)"
           export CARGO_TARGET_AARCH64_APPLE_IOS_LINKER="$(xcrun --sdk iphoneos --find clang)"
           export IPHONEOS_DEPLOYMENT_TARGET="15.0"
@@ -86,7 +87,24 @@ jobs:
           export CXXFLAGS_aarch64_apple_ios="$CFLAGS_aarch64_apple_ios"
           export CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS="-C link-arg=-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
           export RUSTFLAGS="$CARGO_TARGET_AARCH64_APPLE_IOS_RUSTFLAGS"
-          flutter build ios --release --no-codesign --no-pub --dart-define=dcike_enable_remote_diagnostics=false --split-debug-info=build/symbols
+          set +e
+          flutter build ios --release --no-codesign --no-pub --dart-define=dcike_enable_remote_diagnostics=false --split-debug-info=build/symbols 2>&1 | tee "$build_log"
+          status=${PIPESTATUS[0]}
+          set -e
+          echo "Flutter build exit code: $status" >> "$build_log"
+          exit "$status"
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: dcike-ios-build-diagnostics
+          path: |
+            ${{ runner.temp }}/dcike-ios-build.log
+            build/ios/Runner.buildlog/**
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 6
 
       - name: Package IPA for SideStore
         run: |
